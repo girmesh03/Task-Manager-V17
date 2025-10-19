@@ -9,7 +9,7 @@ import { emitToDepartment } from "../utils/socketEmitter.js";
 /**
  * @json {
  *   "controller": "createMaterial",
- *   "route": "POST /materials",
+ *   "route": "POST /api/materials",
  *   "purpose": "Create a new material within the organization",
  *   "transaction": true,
  *   "returns": "Created material object"
@@ -39,7 +39,23 @@ export const createMaterial = asyncHandler(async (req, res, next) => {
       ],
       { session }
     );
-    const created = material[0];
+    const created = await Material.findById(material[0]._id)
+      .session(session)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "addedBy",
+        match: { isDeleted: false },
+        select: "firstName lastName role department",
+      });
 
     await createNotification(session, {
       type: "Created",
@@ -72,13 +88,13 @@ export const createMaterial = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "getAllMaterials",
- *   "route": "GET /materials",
+ *   "route": "GET /api/materials",
  *   "purpose": "List materials based on authorization scope",
  *   "transaction": false,
  *   "returns": "Materials array with pagination metadata"
  * }
  */
-export const getAllMaterials = asyncHandler(async (req, res) => {
+export const getAllMaterials = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const {
     page = 1,
@@ -148,13 +164,13 @@ export const getAllMaterials = asyncHandler(async (req, res) => {
 /**
  * @json {
  *   "controller": "getMaterial",
- *   "route": "GET /materials/:materialId",
+ *   "route": "GET /api/materials/:materialId",
  *   "purpose": "Get single material by ID with usage statistics, recent tasks and activities, and cost analysis",
  *   "transaction": false,
  *   "returns": "Material object with optional usage details"
  * }
  */
-export const getMaterial = asyncHandler(async (req, res) => {
+export const getMaterial = asyncHandler(async (req, res, next) => {
   const { materialId } = req.validated.params;
   const { includeUsage, includeTasks, includeActivities } = req.validated.query;
   const orgId = req.user.organization._id;
@@ -162,9 +178,25 @@ export const getMaterial = asyncHandler(async (req, res) => {
   const material = await Material.findOne({
     _id: materialId,
     organization: orgId,
-  }).lean();
+  })
+    .populate({
+      path: "department",
+      match: { isDeleted: false },
+      select: "_id name",
+    })
+    .populate({
+      path: "organization",
+      match: { isDeleted: false },
+      select: "_id name",
+    })
+    .populate({
+      path: "addedBy",
+      match: { isDeleted: false },
+      select: "firstName lastName role department",
+    })
+    .lean();
   if (!material)
-    throw new CustomError("Material not found", 404, "MATERIAL_NOT_FOUND");
+    throw CustomError.notFound("Material not found", { materialId });
 
   let usage = null;
   let tasks = null;
@@ -225,7 +257,7 @@ export const getMaterial = asyncHandler(async (req, res) => {
 /**
  * @json {
  *   "controller": "updateMaterial",
- *   "route": "PUT /materials/:materialId",
+ *   "route": "PUT /api/materials/:materialId",
  *   "purpose": "Update material details",
  *   "transaction": true,
  *   "returns": "Updated material object"
@@ -271,11 +303,29 @@ export const updateMaterial = asyncHandler(async (req, res, next) => {
 
     emitToDepartment(updated.department, "material:updated", { materialId });
 
+    const populatedUpdated = await Material.findById(updated._id)
+      .session(session)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "addedBy",
+        match: { isDeleted: false },
+        select: "firstName lastName role department",
+      });
+
     await session.commitTransaction();
     return res.status(200).json({
       success: true,
       message: "Material updated successfully",
-      data: updated,
+      data: populatedUpdated,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -288,7 +338,7 @@ export const updateMaterial = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "deleteMaterial",
- *   "route": "DELETE /materials/:materialId",
+ *   "route": "DELETE /api/materials/:materialId",
  *   "purpose": "Soft delete a material with unlinking from all tasks and activities",
  *   "transaction": true,
  *   "returns": "Success message with deletion timestamp"
@@ -339,7 +389,7 @@ export const deleteMaterial = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "restoreMaterial",
- *   "route": "POST /materials/:materialId/restore",
+ *   "route": "POST /api/materials/:materialId/restore",
  *   "purpose": "Restore a soft-deleted material with relinking to all tasks and activities",
  *   "transaction": true,
  *   "returns": "Restored material object"
@@ -356,7 +406,23 @@ export const restoreMaterial = asyncHandler(async (req, res, next) => {
   try {
     await Material.restoreByIdWithRelink(materialId, { session });
 
-    const restored = await Material.findById(materialId).session(session);
+    const restored = await Material.findById(materialId)
+      .session(session)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "addedBy",
+        match: { isDeleted: false },
+        select: "firstName lastName role department",
+      });
 
     await createNotification(session, {
       type: "Restored",

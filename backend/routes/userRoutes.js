@@ -32,62 +32,47 @@ router.use(verifyJWT);
 /**
  * @json {
  *   "method": "POST",
- *   "path": "/users",
- *   "description": "Create a new user within a specific department",
- *   "validators": ["validateCreateUser"],
- *   "controller": "createUser"
+ *   "path": "/api/users",
+ *   "middleware": ["verifyJWT", "authorize('User', 'create')", "validateCreateUser"],
+ *   "controller": "createUser",
+ *   "description": "Create a new user within a specific department"
  * }
  */
-router.post(
-  "/users",
-  authorize("User", "create"),
-  validateCreateUser,
-  createUser
-);
+router.post("/", authorize("User", "create"), validateCreateUser, createUser);
 
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/users",
- *   "description": "List users based on authorization scope",
- *   "validators": ["validateGetAllUsers"],
- *   "controller": "getAllUsers"
+ *   "path": "/api/users",
+ *   "middleware": ["verifyJWT", "authorize('User', 'read')", "validateGetAllUsers"],
+ *   "controller": "getAllUsers",
+ *   "description": "List users based on authorization scope"
  * }
  */
-router.get(
-  "/users",
-  authorize("User", "read"),
-  validateGetAllUsers,
-  getAllUsers
-);
+router.get("/", authorize("User", "read"), validateGetAllUsers, getAllUsers);
 
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/users/:userId",
- *   "description": "Get single user by ID with complete profile",
- *   "validators": ["validateGetUser"],
- *   "controller": "getUser"
+ *   "path": "/api/users/:userId",
+ *   "middleware": ["verifyJWT", "authorize('User', 'read')", "validateGetUser"],
+ *   "controller": "getUser",
+ *   "description": "Get single user by ID with complete profile"
  * }
  */
-router.get(
-  "/users/:userId",
-  authorize("User", "read"),
-  validateGetUser,
-  getUser
-);
+router.get("/:userId", authorize("User", "read"), validateGetUser, getUser);
 
 /**
  * @json {
  *   "method": "PUT",
- *   "path": "/users/:userId",
- *   "description": "Update user by SuperAdmin",
- *   "validators": ["validateUpdateUser"],
- *   "controller": "updateUserBy"
+ *   "path": "/api/users/:userId",
+ *   "middleware": ["verifyJWT", "authorize('User', 'update')", "validateUpdateUser"],
+ *   "controller": "updateUserBy",
+ *   "description": "Update user by SuperAdmin"
  * }
  */
 router.put(
-  "/users/:userId",
+  "/:userId",
   authorize("User", "update"),
   validateUpdateUser,
   updateUserBy
@@ -96,14 +81,14 @@ router.put(
 /**
  * @json {
  *   "method": "PUT",
- *   "path": "/users/:userId/profile",
- *   "description": "Update own user profile with role-based field restrictions",
- *   "validators": ["validateUpdateMyProfile"],
- *   "controller": "updateMyProfile"
+ *   "path": "/api/users/:userId/profile",
+ *   "middleware": ["verifyJWT", "authorize('User', 'update')", "validateUpdateMyProfile"],
+ *   "controller": "updateMyProfile",
+ *   "description": "Update own user profile with role-based field restrictions"
  * }
  */
 router.put(
-  "/users/:userId/profile",
+  "/:userId/profile",
   authorize("User", "update"),
   validateUpdateMyProfile,
   updateMyProfile
@@ -112,14 +97,14 @@ router.put(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/users/:userId/account",
- *   "description": "Get current authenticated user's account information",
- *   "validators": ["validateGetMyAccount"],
- *   "controller": "getMyAccount"
+ *   "path": "/api/users/:userId/account",
+ *   "middleware": ["verifyJWT", "authorize('User', 'read')", "validateGetMyAccount"],
+ *   "controller": "getMyAccount",
+ *   "description": "Get current authenticated user's account information"
  * }
  */
 router.get(
-  "/users/:userId/account",
+  "/:userId/account",
   authorize("User", "read"),
   validateGetMyAccount,
   getMyAccount
@@ -128,14 +113,14 @@ router.get(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/users/:userId/profile",
- *   "description": "Get current authenticated user's complete profile and dashboard",
- *   "validators": ["validateGetMyProfile"],
- *   "controller": "getMyProfile"
+ *   "path": "/api/users/:userId/profile",
+ *   "middleware": ["verifyJWT", "authorize('User', 'read')", "validateGetMyProfile"],
+ *   "controller": "getMyProfile",
+ *   "description": "Get current authenticated user's complete profile and dashboard"
  * }
  */
 router.get(
-  "/users/:userId/profile",
+  "/:userId/profile",
   authorize("User", "read"),
   validateGetMyProfile,
   getMyProfile
@@ -144,14 +129,14 @@ router.get(
 /**
  * @json {
  *   "method": "DELETE",
- *   "path": "/users/:userId",
- *   "description": "Soft delete a user with cascade deletion",
- *   "validators": ["validateDeleteUser"],
- *   "controller": "deleteUser"
+ *   "path": "/api/users/:userId",
+ *   "middleware": ["verifyJWT", "authorize('User', 'delete')", "validateDeleteUser"],
+ *   "controller": "deleteUser",
+ *   "description": "Soft delete a user with cascade deletion"
  * }
  */
 router.delete(
-  "/users/:userId",
+  "/:userId",
   authorize("User", "delete"),
   validateDeleteUser,
   deleteUser
@@ -159,19 +144,18 @@ router.delete(
 
 /**
  * @json {
- *   "method": "POST",
- *   "path": "/users/:userId/restore",
- *   "description": "Restore a soft-deleted user",
- *   "validators": ["validateRestoreUser"],
- *   "controller": "restoreUser"
+ *   "method": "PATCH",
+ *   "path": "/api/users/:userId/restore",
+ *   "middleware": ["verifyJWT", "authorize('User', 'update')", "validateRestoreUser"],
+ *   "controller": "restoreUser",
+ *   "description": "Restore a soft-deleted user"
  * }
  */
-router.post(
-  "/users/:userId/restore",
+router.patch(
+  "/:userId/restore",
   authorize("User", "update"),
   validateRestoreUser,
   restoreUser
 );
 
 export default router;
-

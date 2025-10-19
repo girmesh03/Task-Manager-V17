@@ -10,6 +10,7 @@ import TaskRoutes from "./taskRoutes.js";
 import VendorRoutes from "./vendorRoutes.js";
 import MaterialRoutes from "./materialRoutes.js";
 import NotificationRoutes from "./notificationRoutes.js";
+import AttachmentRoutes from "./attachmentRoutes.js";
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use("/tasks", TaskRoutes);
 router.use("/vendors", VendorRoutes);
 router.use("/materials", MaterialRoutes);
 router.use("/notifications", NotificationRoutes);
+router.use("/attachments", AttachmentRoutes);
 
 export default router;

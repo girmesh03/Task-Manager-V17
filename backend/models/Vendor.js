@@ -70,6 +70,10 @@ const VendorSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -77,6 +81,10 @@ const VendorSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },

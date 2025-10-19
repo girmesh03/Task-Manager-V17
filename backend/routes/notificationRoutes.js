@@ -20,14 +20,14 @@ router.use(verifyJWT);
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/notifications",
- *   "description": "Get user notifications with pagination",
- *   "validators": ["validateGetAllNotifications"],
- *   "controller": "getAllNotifications"
+ *   "path": "/api/notifications",
+ *   "middleware": ["verifyJWT", "authorize('Notification', 'read')", "validateGetAllNotifications"],
+ *   "controller": "getAllNotifications",
+ *   "description": "Get user notifications with pagination"
  * }
  */
 router.get(
-  "/notifications",
+  "/",
   authorize("Notification", "read"),
   validateGetAllNotifications,
   getAllNotifications
@@ -36,14 +36,14 @@ router.get(
 /**
  * @json {
  *   "method": "PATCH",
- *   "path": "/notifications/:notificationId/read",
- *   "description": "Mark a notification as read",
- *   "validators": ["validateMarkNotificationRead"],
- *   "controller": "markNotificationRead"
+ *   "path": "/api/notifications/:notificationId/read",
+ *   "middleware": ["verifyJWT", "authorize('Notification', 'update')", "validateMarkNotificationRead"],
+ *   "controller": "markNotificationRead",
+ *   "description": "Mark a notification as read"
  * }
  */
 router.patch(
-  "/notifications/:notificationId/read",
+  "/:notificationId/read",
   authorize("Notification", "update"),
   validateMarkNotificationRead,
   markNotificationRead
@@ -52,14 +52,14 @@ router.patch(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/notifications/unread-count",
- *   "description": "Get count of unread notifications for the authenticated user",
- *   "validators": ["validateGetUnreadCount"],
- *   "controller": "getUnreadCount"
+ *   "path": "/api/notifications/unread-count",
+ *   "middleware": ["verifyJWT", "authorize('Notification', 'read')", "validateGetUnreadCount"],
+ *   "controller": "getUnreadCount",
+ *   "description": "Get count of unread notifications for the authenticated user"
  * }
  */
 router.get(
-  "/notifications/unread-count",
+  "/unread-count",
   authorize("Notification", "read"),
   validateGetUnreadCount,
   getUnreadCount

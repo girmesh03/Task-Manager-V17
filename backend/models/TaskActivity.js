@@ -1,5 +1,6 @@
 // backend/models/TaskActivity.js
 import mongoose from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
 import softDeletePlugin from "./plugins/softDelete.js";
 import {
   TASK_ACTIVITY_PARENT_MODELS,
@@ -123,6 +124,10 @@ const TaskActivitySchema = new mongoose.Schema(
       virtuals: true,
       transform: function (doc, ret) {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -130,6 +135,10 @@ const TaskActivitySchema = new mongoose.Schema(
       virtuals: true,
       transform: function (doc, ret) {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -280,6 +289,7 @@ TaskActivitySchema.pre("save", async function (next) {
 
 // Plugins
 TaskActivitySchema.plugin(softDeletePlugin);
+TaskActivitySchema.plugin(mongoosePaginate);
 
 // ==================== NEW METHODS FOR MATERIAL MANAGEMENT ====================
 TaskActivitySchema.statics.removeMaterialFromAllActivities = async function (

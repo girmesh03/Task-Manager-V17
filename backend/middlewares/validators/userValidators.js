@@ -214,6 +214,18 @@ export const validateCreateUser = [
         throw new Error("joinedAt cannot be in the future");
       return true;
     }),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("isPlatformUser")
+    .not()
+    .exists()
+    .withMessage(
+      "isPlatformUser cannot be manually set. It is automatically determined by the system"
+    ),
   body().custom(async (_, { req }) => {
     // HOD uniqueness pre-check
     const role = req.body.role;
@@ -242,16 +254,16 @@ export const validateCreateUser = [
       departmentId: b.departmentId,
       profilePicture: b.profilePicture
         ? {
-          url: b.profilePicture.url,
-          publicId: b.profilePicture.publicId?.trim(),
-        }
+            url: b.profilePicture.url,
+            publicId: b.profilePicture.publicId?.trim(),
+          }
         : undefined,
       skills: Array.isArray(b.skills)
         ? b.skills.map((s) => ({
-          skill: s.skill?.trim(),
-          percentage:
-            s.percentage !== undefined ? Number(s.percentage) : undefined,
-        }))
+            skill: s.skill?.trim(),
+            percentage:
+              s.percentage !== undefined ? Number(s.percentage) : undefined,
+          }))
         : undefined,
       employeeId: b.employeeId !== undefined ? Number(b.employeeId) : undefined,
       dateOfBirth: b.dateOfBirth ? new Date(b.dateOfBirth) : undefined,
@@ -538,6 +550,18 @@ export const validateUpdateUser = [
         throw new Error("joinedAt cannot be in the future");
       return true;
     }),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("isPlatformUser")
+    .not()
+    .exists()
+    .withMessage(
+      "isPlatformUser cannot be manually set. It is automatically determined by the system"
+    ),
   body().custom(async (_, { req }) => {
     // HOD uniqueness check when role or department change
     const role = req.body.role;
@@ -566,16 +590,16 @@ export const validateUpdateUser = [
       departmentId: b.departmentId,
       profilePicture: b.profilePicture
         ? {
-          url: b.profilePicture.url,
-          publicId: b.profilePicture.publicId?.trim(),
-        }
+            url: b.profilePicture.url,
+            publicId: b.profilePicture.publicId?.trim(),
+          }
         : undefined,
       skills: Array.isArray(b.skills)
         ? b.skills.map((s) => ({
-          skill: s.skill?.trim(),
-          percentage:
-            s.percentage !== undefined ? Number(s.percentage) : undefined,
-        }))
+            skill: s.skill?.trim(),
+            percentage:
+              s.percentage !== undefined ? Number(s.percentage) : undefined,
+          }))
         : undefined,
       employeeId: b.employeeId !== undefined ? Number(b.employeeId) : undefined,
       dateOfBirth: b.dateOfBirth ? new Date(b.dateOfBirth) : undefined,
@@ -754,6 +778,18 @@ export const validateUpdateMyProfile = [
         throw new Error("joinedAt cannot be in the future");
       return true;
     }),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("isPlatformUser")
+    .not()
+    .exists()
+    .withMessage(
+      "isPlatformUser cannot be manually set. It is automatically determined by the system"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;
@@ -767,16 +803,16 @@ export const validateUpdateMyProfile = [
       password: b.password,
       profilePicture: b.profilePicture
         ? {
-          url: b.profilePicture.url,
-          publicId: b.profilePicture.publicId?.trim(),
-        }
+            url: b.profilePicture.url,
+            publicId: b.profilePicture.publicId?.trim(),
+          }
         : undefined,
       skills: Array.isArray(b.skills)
         ? b.skills.map((s) => ({
-          skill: s.skill?.trim(),
-          percentage:
-            s.percentage !== undefined ? Number(s.percentage) : undefined,
-        }))
+            skill: s.skill?.trim(),
+            percentage:
+              s.percentage !== undefined ? Number(s.percentage) : undefined,
+          }))
         : undefined,
       employeeId: b.employeeId !== undefined ? Number(b.employeeId) : undefined,
       dateOfBirth: b.dateOfBirth ? new Date(b.dateOfBirth) : undefined,
@@ -987,19 +1023,25 @@ export const validateUpdateEmailPreferences = [
     .withMessage("passwordReset must be a boolean value"),
 
   // Custom validation to ensure at least one field is provided
-  body()
-    .custom((value) => {
-      const allowedFields = [
-        'enabled', 'taskNotifications', 'taskReminders',
-        'mentions', 'announcements', 'welcomeEmails', 'passwordReset'
-      ];
-      const providedFields = Object.keys(value).filter(key => allowedFields.includes(key));
+  body().custom((value) => {
+    const allowedFields = [
+      "enabled",
+      "taskNotifications",
+      "taskReminders",
+      "mentions",
+      "announcements",
+      "welcomeEmails",
+      "passwordReset",
+    ];
+    const providedFields = Object.keys(value).filter((key) =>
+      allowedFields.includes(key)
+    );
 
-      if (providedFields.length === 0) {
-        throw new Error('At least one email preference field must be provided');
-      }
-      return true;
-    }),
+    if (providedFields.length === 0) {
+      throw new Error("At least one email preference field must be provided");
+    }
+    return true;
+  }),
 
   handleValidationErrors,
 
@@ -1082,19 +1124,25 @@ export const validateUpdateMyEmailPreferences = [
     .withMessage("passwordReset must be a boolean value"),
 
   // Custom validation to ensure at least one field is provided
-  body()
-    .custom((value) => {
-      const allowedFields = [
-        'enabled', 'taskNotifications', 'taskReminders',
-        'mentions', 'announcements', 'welcomeEmails', 'passwordReset'
-      ];
-      const providedFields = Object.keys(value).filter(key => allowedFields.includes(key));
+  body().custom((value) => {
+    const allowedFields = [
+      "enabled",
+      "taskNotifications",
+      "taskReminders",
+      "mentions",
+      "announcements",
+      "welcomeEmails",
+      "passwordReset",
+    ];
+    const providedFields = Object.keys(value).filter((key) =>
+      allowedFields.includes(key)
+    );
 
-      if (providedFields.length === 0) {
-        throw new Error('At least one email preference field must be provided');
-      }
-      return true;
-    }),
+    if (providedFields.length === 0) {
+      throw new Error("At least one email preference field must be provided");
+    }
+    return true;
+  }),
 
   handleValidationErrors,
 
@@ -1166,7 +1214,7 @@ export const validateSendBulkAnnouncement = [
     .bail()
     .isString()
     .withMessage("Target type must be a string")
-    .isIn(['organization', 'department'])
+    .isIn(["organization", "department"])
     .withMessage("Target type must be 'organization' or 'department'"),
 
   body("targetDepartmentId")
@@ -1175,13 +1223,14 @@ export const validateSendBulkAnnouncement = [
     .withMessage("Target department ID must be a valid MongoDB ObjectId"),
 
   // Custom validation for targetDepartmentId when targetType is 'department'
-  body()
-    .custom((value) => {
-      if (value.targetType === 'department' && !value.targetDepartmentId) {
-        throw new Error('targetDepartmentId is required when targetType is department');
-      }
-      return true;
-    }),
+  body().custom((value) => {
+    if (value.targetType === "department" && !value.targetDepartmentId) {
+      throw new Error(
+        "targetDepartmentId is required when targetType is department"
+      );
+    }
+    return true;
+  }),
 
   handleValidationErrors,
 

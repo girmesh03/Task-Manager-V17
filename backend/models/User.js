@@ -272,6 +272,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    isPlatformUser: {
+      type: Boolean,
+      default: false,
+      immutable: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -280,7 +286,13 @@ const userSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.id;
+        delete ret.__v;
         delete ret.password;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpires;
         return ret;
       },
     },
@@ -288,7 +300,13 @@ const userSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.id;
+        delete ret.__v;
         delete ret.password;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpires;
         return ret;
       },
     },
@@ -333,12 +351,26 @@ userSchema.virtual("fullName").get(function () {
 
 // ==================== HOOKS ====================
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
   try {
-    this.password = await bcrypt.hash(this.password, 12);
+    const session = this.$session?.();
+
+    // Set isPlatformUser based on organization's isPlatformOrg
+    if (this.isNew && this.organization) {
+      const { Organization } = await import("./Organization.js");
+      const org = await Organization.findById(this.organization).session(
+        session
+      );
+      this.isPlatformUser = org?.isPlatformOrg || false;
+    }
+
+    // Hash password if modified
+    if (this.isModified("password")) {
+      this.password = await bcrypt.hash(this.password, 12);
+    }
+
     next();
   } catch (error) {
-    next(new Error("Password hashing failed"));
+    next(error);
   }
 });
 
@@ -354,7 +386,8 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 
 userSchema.methods.generatePasswordResetToken = function () {
   // Generate random token
-  const resetToken = Math.random().toString(36).substring(2, 15) +
+  const resetToken =
+    Math.random().toString(36).substring(2, 15) +
     Math.random().toString(36).substring(2, 15) +
     Date.now().toString(36);
 

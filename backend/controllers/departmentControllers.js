@@ -26,18 +26,14 @@ export const createDepartment = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const dept = await Department.create(
-      [
-        {
-          name,
-          description,
-          organization: orgId,
-          createdBy: callerId,
-        },
-      ],
-      { session }
-    );
-    const created = dept[0];
+    const dept = new Department({
+      name,
+      description,
+      organization: orgId,
+      createdBy: callerId,
+    });
+    await dept.save({ session });
+    const created = dept;
 
     const hodRecipients = await User.find({
       organization: orgId,
@@ -70,7 +66,7 @@ export const createDepartment = asyncHandler(async (req, res, next) => {
     });
 
     await session.commitTransaction();
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Department created successfully",
       data: created,
@@ -92,7 +88,7 @@ export const createDepartment = asyncHandler(async (req, res, next) => {
  *   "returns": "Departments array with pagination metadata"
  * }
  */
-export const getAllDepartments = asyncHandler(async (req, res) => {
+export const getAllDepartments = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const {
     page = 1,
@@ -127,7 +123,7 @@ export const getAllDepartments = asyncHandler(async (req, res) => {
 
   const result = await query.paginate(filter, options);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Departments fetched successfully",
     pagination: {
@@ -151,16 +147,44 @@ export const getAllDepartments = asyncHandler(async (req, res) => {
  *   "returns": "Department object with populated relationships and stats"
  * }
  */
-export const getDepartment = asyncHandler(async (req, res) => {
+export const getDepartment = asyncHandler(async (req, res, next) => {
   const { departmentId } = req.validated.params;
   const orgId = req.user.organization._id;
 
   const department = await Department.findOne({
     _id: departmentId,
     organization: orgId,
-  }).lean();
+  })
+    .populate({
+      path: "organization",
+      match: { isDeleted: false },
+      select:
+        "_id name description email phone address industry logoUrl createdBy createdAt",
+    })
+    .populate({
+      path: "createdBy",
+      match: { isDeleted: false },
+      select:
+        "_id firstName lastName email role position department organization profilePicture",
+      populate: [
+        {
+          path: "department",
+          match: { isDeleted: false },
+          select: "_id name description",
+        },
+        {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      ],
+    })
+    .lean();
   if (!department || department.isDeleted) {
-    throw new CustomError("Department not found", 404, "DEPT_NOT_FOUND");
+    throw CustomError.notFound("Department not found", {
+      departmentId,
+      organizationId: orgId,
+    });
   }
 
   const [users, tasksByStatus, recentActivities, hodUsers] = await Promise.all([
@@ -214,7 +238,7 @@ export const getDepartment = asyncHandler(async (req, res) => {
       .lean(),
   ]);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Department fetched successfully",
     data: {
@@ -255,9 +279,32 @@ export const updateDepartment = asyncHandler(async (req, res, next) => {
       { session }
     );
 
-    const updated = await Department.findOne({ _id: departmentId }).session(
-      session
-    );
+    const updated = await Department.findOne({ _id: departmentId })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: [
+          {
+            path: "department",
+            match: { isDeleted: false },
+            select: "_id name description",
+          },
+          {
+            path: "organization",
+            match: { isDeleted: false },
+            select: "_id name",
+          },
+        ],
+      })
+      .session(session);
 
     const hodRecipients = await User.find({
       department: departmentId,
@@ -288,7 +335,7 @@ export const updateDepartment = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "department:updated", { departmentId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Department updated successfully",
       data: updated,
@@ -346,7 +393,7 @@ export const deleteDepartment = asyncHandler(async (req, res, next) => {
     emitToDepartment(departmentId, "department:deleted", { departmentId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Department soft-deleted successfully",
       data: { departmentId, deletedAt: new Date().toISOString() },
@@ -377,9 +424,32 @@ export const restoreDepartment = asyncHandler(async (req, res, next) => {
   session.startTransaction();
   try {
     await Department.restoreById(departmentId, { session });
-    const restored = await Department.findOne({ _id: departmentId }).session(
-      session
-    );
+    const restored = await Department.findOne({ _id: departmentId })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: [
+          {
+            path: "department",
+            match: { isDeleted: false },
+            select: "_id name description",
+          },
+          {
+            path: "organization",
+            match: { isDeleted: false },
+            select: "_id name",
+          },
+        ],
+      })
+      .session(session);
 
     const hodRecipients = await User.find({
       department: departmentId,
@@ -406,7 +476,7 @@ export const restoreDepartment = asyncHandler(async (req, res, next) => {
     emitToDepartment(departmentId, "department:restored", { departmentId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Department restored successfully",
       data: restored,

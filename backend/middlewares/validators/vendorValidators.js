@@ -83,6 +83,12 @@ export const validateCreateVendor = [
         throw new Error("Vendor phone already exists in your organization");
       return true;
     }),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;
@@ -271,6 +277,12 @@ export const validateUpdateVendor = [
         throw new Error("Vendor phone already exists in your organization");
       return true;
     }),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;

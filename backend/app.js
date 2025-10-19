@@ -38,11 +38,22 @@ app.use("/api", routes);
 // Catch-all route for undefined endpoints
 app.all("*", (req, res, next) => {
   const errorMessage = `Resource not found. The requested URL ${req.originalUrl} was not found on this server.`;
-  next(CustomError.notFound(errorMessage, {
-    requestedUrl: req.originalUrl,
-    method: req.method,
-    availableRoutes: ['/api/auth', '/api/users', '/api/tasks', '/api/organizations', '/api/departments']
-  }));
+  next(
+    CustomError.notFound(errorMessage, {
+      requestedUrl: req.originalUrl,
+      method: req.method,
+      availableRoutes: [
+        "/api/auth",
+        "/api/organizations",
+        "/api/departments",
+        "/api/users",
+        "/api/tasks",
+        "/api/materials",
+        "/api/vendors",
+        "/api/notifications",
+      ],
+    })
+  );
 });
 
 // Global error handler

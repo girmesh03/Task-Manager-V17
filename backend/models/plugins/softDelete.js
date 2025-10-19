@@ -8,13 +8,14 @@
 export default function softDeletePlugin(schema, options = {}) {
   // ==================== FIELDS ====================
   schema.add({
-    isDeleted: { type: Boolean, default: false, index: true },
-    deletedAt: { type: Date, default: null, index: true },
+    isDeleted: { type: Boolean, default: false, index: true, select: false },
+    deletedAt: { type: Date, default: null, index: true, select: false },
     deletedBy: {
       type: schema.constructor.Types.ObjectId,
       ref: "User",
       default: null,
       index: true,
+      select: false,
     },
   });
 

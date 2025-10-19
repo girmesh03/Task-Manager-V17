@@ -28,19 +28,15 @@ export const createVendor = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const vendor = await Vendor.create(
-      [
-        {
-          name,
-          email,
-          phone,
-          organization: orgId,
-          createdBy: callerId,
-        },
-      ],
-      { session }
-    );
-    const created = vendor[0];
+    const vendor = new Vendor({
+      name,
+      email,
+      phone,
+      organization: orgId,
+      createdBy: callerId,
+    });
+
+    await vendor.save({ session });
 
     const hodRecipients = await User.find({
       organization: orgId,
@@ -56,7 +52,7 @@ export const createVendor = asyncHandler(async (req, res, next) => {
     await createNotification(session, {
       type: "Created",
       title: "Vendor created",
-      message: `Vendor "${created.name}" created`,
+      message: `Vendor "${vendor.name}" created`,
       entity: undefined,
       entityModel: undefined,
       recipients: recipientIds,
@@ -65,14 +61,14 @@ export const createVendor = asyncHandler(async (req, res, next) => {
       createdBy: callerId,
     });
 
-    emitToOrganization(orgId, "vendor:created", { vendorId: created._id });
-    emitToRecipients(recipientIds, "vendor:created", { vendorId: created._id });
+    emitToOrganization(orgId, "vendor:created", { vendorId: vendor._id });
+    emitToRecipients(recipientIds, "vendor:created", { vendorId: vendor._id });
 
     await session.commitTransaction();
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Vendor created successfully",
-      data: created,
+      data: vendor,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -91,7 +87,7 @@ export const createVendor = asyncHandler(async (req, res, next) => {
  *   "returns": "Vendors array with pagination metadata"
  * }
  */
-export const getAllVendors = asyncHandler(async (req, res) => {
+export const getAllVendors = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const {
     page = 1,
@@ -124,7 +120,7 @@ export const getAllVendors = asyncHandler(async (req, res) => {
 
   const result = await query.paginate(filter, options);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Vendors fetched successfully",
     pagination: {
@@ -148,7 +144,7 @@ export const getAllVendors = asyncHandler(async (req, res) => {
  *   "returns": "Vendor object with tasks and statistics"
  * }
  */
-export const getVendor = asyncHandler(async (req, res) => {
+export const getVendor = asyncHandler(async (req, res, next) => {
   const { vendorId } = req.validated.params;
   const orgId = req.user.organization._id;
 
@@ -156,9 +152,37 @@ export const getVendor = asyncHandler(async (req, res) => {
     _id: vendorId,
     organization: orgId,
     isDeleted: false,
-  }).lean();
+  })
+    .populate({
+      path: "organization",
+      match: { isDeleted: false },
+      select:
+        "_id name description email phone address industry logoUrl createdBy createdAt",
+    })
+    .populate({
+      path: "createdBy",
+      match: { isDeleted: false },
+      select:
+        "_id firstName lastName email role position department organization profilePicture",
+      populate: [
+        {
+          path: "department",
+          match: { isDeleted: false },
+          select: "_id name description",
+        },
+        {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      ],
+    })
+    .lean();
   if (!vendor)
-    throw new CustomError("Vendor not found", 404, "VENDOR_NOT_FOUND");
+    throw CustomError.notFound("Vendor not found", {
+      vendorId,
+      organizationId: orgId,
+    });
 
   const tasks = await ProjectTask.find({
     organization: orgId,
@@ -181,7 +205,7 @@ export const getVendor = asyncHandler(async (req, res) => {
     { count: 0, estimatedCost: 0, actualCost: 0, byStatus: {} }
   );
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Vendor fetched successfully",
     data: {
@@ -220,7 +244,32 @@ export const updateVendor = asyncHandler(async (req, res, next) => {
       { $set: update },
       { session }
     );
-    const updated = await Vendor.findOne({ _id: vendorId }).session(session);
+    const updated = await Vendor.findOne({ _id: vendorId })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: [
+          {
+            path: "department",
+            match: { isDeleted: false },
+            select: "_id name description",
+          },
+          {
+            path: "organization",
+            match: { isDeleted: false },
+            select: "_id name",
+          },
+        ],
+      })
+      .session(session);
 
     const hodRecipients = await User.find({
       organization: orgId,
@@ -248,7 +297,7 @@ export const updateVendor = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "vendor:updated", { vendorId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Vendor updated successfully",
       data: updated,
@@ -305,7 +354,7 @@ export const deleteVendor = asyncHandler(async (req, res, next) => {
     });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Vendor soft-deleted successfully",
       data: {
@@ -346,7 +395,32 @@ export const restoreVendor = asyncHandler(async (req, res, next) => {
       { session }
     );
 
-    const restored = await Vendor.findOne({ _id: vendorId }).session(session);
+    const restored = await Vendor.findOne({ _id: vendorId })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: [
+          {
+            path: "department",
+            match: { isDeleted: false },
+            select: "_id name description",
+          },
+          {
+            path: "organization",
+            match: { isDeleted: false },
+            select: "_id name",
+          },
+        ],
+      })
+      .session(session);
 
     await createNotification(session, {
       type: "Restored",
@@ -363,7 +437,7 @@ export const restoreVendor = asyncHandler(async (req, res, next) => {
     emitToOrganization(orgId, "vendor:restored", { vendorId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Vendor restored successfully",
       data: restored,

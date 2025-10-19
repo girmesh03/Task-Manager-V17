@@ -140,6 +140,12 @@ const organizationSchema = new mongoose.Schema(
     },
     logoUrl: logoUrlSchema,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    isPlatformOrg: {
+      type: Boolean,
+      default: false,
+      immutable: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -148,6 +154,10 @@ const organizationSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -155,6 +165,10 @@ const organizationSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -185,6 +199,12 @@ organizationSchema.plugin(mongoosePaginate);
 organizationSchema.pre("save", async function (next) {
   try {
     const session = this.$session?.();
+
+    // Set isPlatformOrg based on PLATFORM_ORGANIZATION_ID
+    if (this.isNew) {
+      const platformOrgId = process.env.PLATFORM_ORGANIZATION_ID;
+      this.isPlatformOrg = this._id.toString() === platformOrgId;
+    }
 
     if (this.createdBy) {
       const { User } = await import("./User.js");

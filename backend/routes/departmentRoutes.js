@@ -25,14 +25,14 @@ router.use(verifyJWT);
 /**
  * @json {
  *   "method": "POST",
- *   "path": "/departments",
- *   "description": "Create a new department within the user's organization",
- *   "validators": ["validateCreateDepartment"],
- *   "controller": "createDepartment"
+ *   "path": "/api/departments",
+ *   "middleware": ["verifyJWT", "authorize('Department', 'create')", "validateCreateDepartment"],
+ *   "controller": "createDepartment",
+ *   "description": "Create a new department within the authenticated user's organization"
  * }
  */
 router.post(
-  "/departments",
+  "/",
   authorize("Department", "create"),
   validateCreateDepartment,
   createDepartment
@@ -41,14 +41,14 @@ router.post(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/departments",
- *   "description": "List departments based on authorization scope",
- *   "validators": ["validateGetAllDepartments"],
- *   "controller": "getAllDepartments"
+ *   "path": "/api/departments",
+ *   "middleware": ["verifyJWT", "authorize('Department', 'read')", "validateGetAllDepartments"],
+ *   "controller": "getAllDepartments",
+ *   "description": "List departments based on authorization scope (organization from auth context)"
  * }
  */
 router.get(
-  "/departments",
+  "/",
   authorize("Department", "read"),
   validateGetAllDepartments,
   getAllDepartments
@@ -57,14 +57,14 @@ router.get(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/departments/:departmentId",
- *   "description": "Get single department by ID with complete dashboard",
- *   "validators": ["validateGetDepartment"],
- *   "controller": "getDepartment"
+ *   "path": "/api/departments/:departmentId",
+ *   "middleware": ["verifyJWT", "authorize('Department', 'read')", "validateGetDepartment"],
+ *   "controller": "getDepartment",
+ *   "description": "Get single department by ID with complete dashboard"
  * }
  */
 router.get(
-  "/departments/:departmentId",
+  "/:departmentId",
   authorize("Department", "read"),
   validateDeleteDepartment,
   getDepartment
@@ -73,14 +73,14 @@ router.get(
 /**
  * @json {
  *   "method": "PUT",
- *   "path": "/departments/:departmentId",
- *   "description": "Update department details",
- *   "validators": ["validateUpdateDepartment"],
- *   "controller": "updateDepartment"
+ *   "path": "/api/departments/:departmentId",
+ *   "middleware": ["verifyJWT", "authorize('Department', 'update')", "validateUpdateDepartment"],
+ *   "controller": "updateDepartment",
+ *   "description": "Update department details (organization from auth context)"
  * }
  */
 router.put(
-  "/departments/:departmentId",
+  "/:departmentId",
   authorize("Department", "update"),
   validateUpdateDepartment,
   updateDepartment
@@ -89,14 +89,14 @@ router.put(
 /**
  * @json {
  *   "method": "DELETE",
- *   "path": "/departments/:departmentId",
- *   "description": "Soft delete a department with full cascade deletion",
- *   "validators": ["validateDeleteDepartment"],
- *   "controller": "deleteDepartment"
+ *   "path": "/api/departments/:departmentId",
+ *   "middleware": ["verifyJWT", "authorize('Department', 'delete')", "validateDeleteDepartment"],
+ *   "controller": "deleteDepartment",
+ *   "description": "Soft delete a department with full cascade deletion"
  * }
  */
 router.delete(
-  "/departments/:departmentId",
+  "/:departmentId",
   authorize("Department", "delete"),
   validateDeleteDepartment,
   deleteDepartment
@@ -104,15 +104,15 @@ router.delete(
 
 /**
  * @json {
- *   "method": "POST",
- *   "path": "/departments/:departmentId/restore",
- *   "description": "Restore a soft-deleted department",
- *   "validators": ["validateRestoreDepartment"],
- *   "controller": "restoreDepartment"
+ *   "method": "PATCH",
+ *   "path": "/api/departments/:departmentId/restore",
+ *   "middleware": ["verifyJWT", "authorize('Department', 'update')", "validateRestoreDepartment"],
+ *   "controller": "restoreDepartment",
+ *   "description": "Restore a soft-deleted department"
  * }
  */
-router.post(
-  "/departments/:departmentId/restore",
+router.patch(
+  "/:departmentId/restore",
   authorize("Department", "update"),
   validateRestoreDepartment,
   restoreDepartment

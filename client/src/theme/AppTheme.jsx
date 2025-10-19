@@ -11,7 +11,6 @@ import {
   chartsCustomizations,
   dataGridCustomizations,
   datePickersCustomizations,
-  treeViewCustomizations,
 } from "./customizations";
 
 import { colorSchemes, typography, shadows, shape } from "./themePrimitives";
@@ -38,7 +37,6 @@ function AppTheme(props) {
           ...chartsCustomizations,
           ...dataGridCustomizations,
           ...datePickersCustomizations,
-          ...treeViewCustomizations,
         },
       }),
     []

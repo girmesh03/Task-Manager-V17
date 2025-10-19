@@ -12,7 +12,9 @@ import {
   TaskComment,
   Notification,
 } from "../models/index.js";
-import { createNotification, escapeRegex } from "../utils/helpers.js";
+import { escapeRegex } from "../utils/helpers.js";
+import { transformMaterialsForStorage } from "../utils/materialTransform.js";
+import notificationService from "../services/notificationService.js";
 import {
   TASK_TYPES,
   HEAD_OF_DEPARTMENT_ROLES,
@@ -37,12 +39,12 @@ const populateTask = async (taskId, session) => {
     .populate({
       path: "watchers",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     });
 
   const task = await basePopulate.exec();
@@ -54,7 +56,7 @@ const populateTask = async (taskId, session) => {
     await task.populate({
       path: "assignees",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     });
   } else if (task.taskType === "ProjectTask") {
     await task.populate({
@@ -72,36 +74,21 @@ const populateTask = async (taskId, session) => {
 };
 
 /**
- * Collect default recipients for task notifications
- */
-const collectTaskRecipients = (task) => {
-  const watcherIds = Array.isArray(task.watchers)
-    ? task.watchers.map((w) => w.toString())
-    : [];
-  const assigneeIds =
-    task.taskType === "AssignedTask" && Array.isArray(task.assignees)
-      ? task.assignees.map((a) => a.toString())
-      : [];
-  return [...new Set([...watcherIds, ...assigneeIds])];
-};
-
-/**
  * Create Attachment docs for a parent entity
  */
 const createAttachments = async ({
   parentId,
   parentModel,
   orgId,
+  deptId,
   uploaderId,
   attachments,
   session,
 }) => {
   if (!attachments || attachments.length === 0) return [];
   if (attachments.length > MAX_ATTACHMENTS_PER_ENTITY) {
-    throw new CustomError(
-      `Attachments cannot exceed ${MAX_ATTACHMENTS_PER_ENTITY}`,
-      400,
-      "ATTACHMENT_LIMIT_ERROR"
+    throw CustomError.validation(
+      `Attachments cannot exceed ${MAX_ATTACHMENTS_PER_ENTITY}`
     );
   }
   const docs = attachments.map((att) => ({
@@ -118,6 +105,7 @@ const createAttachments = async ({
     parent: parentId,
     parentModel,
     organization: orgId,
+    department: deptId,
     uploadedBy: uploaderId,
   }));
   const created = await Attachment.insertMany(docs, { session });
@@ -152,7 +140,7 @@ const restoreCommentTree = async (commentId, session) => {
 /**
  * @json {
  *   "controller": "createTask",
- *   "route": "POST /tasks",
+ *   "route": "POST /api/tasks",
  *   "purpose": "Create a new task of any type (RoutineTask, AssignedTask, ProjectTask) based on taskType field.",
  *   "transaction": true,
  *   "returns": "Created task object with all relationships populated"
@@ -180,7 +168,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
     actualCost,
     currency,
     date,
-    materialIds,
+    materials,
   } = req.validated.body;
 
   const session = await mongoose.startSession();
@@ -190,7 +178,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
     let taskDoc;
 
     if (!TASK_TYPES.includes(taskType)) {
-      throw new CustomError("Invalid taskType", 400, "VALIDATION_ERROR");
+      throw CustomError.validation("Invalid taskType");
     }
 
     const base = {
@@ -239,15 +227,24 @@ export const createTask = asyncHandler(async (req, res, next) => {
       );
       taskDoc = taskDoc[0];
     } else if (taskType === "RoutineTask") {
+      // Transform materials from frontend format to backend format
+      /** @type {Array} */
+      let transformedMaterials = [];
+      if (materials && materials.length > 0) {
+        transformedMaterials = await transformMaterialsForStorage(
+          materials,
+          orgId,
+          deptId,
+          session
+        );
+      }
+
       taskDoc = await RoutineTask.create(
         [
           {
             ...base,
             date,
-            materials:
-              Array.isArray(materialIds) && materialIds.length > 0
-                ? materialIds
-                : [],
+            materials: transformedMaterials,
           },
         ],
         { session }
@@ -259,6 +256,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
       parentId: taskDoc._id,
       parentModel: taskType,
       orgId,
+      deptId,
       uploaderId: callerId,
       attachments,
       session,
@@ -275,21 +273,23 @@ export const createTask = asyncHandler(async (req, res, next) => {
     const populatedTask = await populateTask(taskDoc._id, session);
 
     // Notifications & realtime
-    const recipientIds = collectTaskRecipients(taskDoc);
-    const notification = await createNotification(session, {
-      type: "Created",
-      title: "Task Created",
-      message: `Task "${title}" has been created`,
-      entity: taskDoc._id,
-      entityModel: taskType,
-      recipients: recipientIds,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "TASK_CREATED",
+      taskDoc,
+      req.user,
+      {
+        session,
+        email: true,
+        realtime: true,
+        emailData: {
+          taskTitle: title,
+          taskType: taskType,
+        },
+      }
+    );
 
-    if (notification && recipientIds.length > 0) {
-      emitToRecipients(recipientIds, "task:created", {
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(notificationResult.realtimeRecipients, "task:created", {
         taskId: taskDoc._id,
         title: taskDoc.title,
       });
@@ -303,7 +303,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Task created successfully",
       data: populatedTask,
@@ -319,7 +319,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "getAllTasks",
- *   "route": "GET /tasks",
+ *   "route": "GET /api/tasks",
  *   "purpose": "List all tasks across all types with filtering and pagination.",
  *   "transaction": false,
  *   "returns": "Tasks array with pagination metadata"
@@ -404,17 +404,17 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
       {
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       },
       {
         path: "watchers",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       },
       {
         path: "assignees",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       },
     ],
   };
@@ -426,7 +426,7 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
 
   const result = await BaseTask.paginate(query.getFilter(), paginateOptions);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Tasks fetched successfully",
     pagination: {
@@ -444,7 +444,7 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "getTask",
- *   "route": "GET /tasks/:taskId",
+ *   "route": "GET /api/tasks/:taskId",
  *   "purpose": "Get single task by ID with complete details including all activities, comments, attachments, assignees, vendor information, materials, and cost history.",
  *   "transaction": false,
  *   "returns": "Comprehensive task document with activities and comments collections"
@@ -458,7 +458,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
 
   const task = await populateTask(taskId, session);
   if (!task || task.organization.toString() !== orgId.toString()) {
-    throw new CustomError("Task not found", 404, "NOT_FOUND");
+    throw CustomError.notFound("Task not found");
   }
 
   // Activities
@@ -478,7 +478,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .sort({ createdAt: -1 });
 
@@ -492,7 +492,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
     .populate({
       path: "mentions",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .populate({
       path: "attachments",
@@ -501,7 +501,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .sort({ createdAt: -1 });
 
@@ -515,7 +515,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
     .populate({
       path: "mentions",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .populate({
       path: "attachments",
@@ -524,7 +524,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .sort({ createdAt: 1 });
 
@@ -534,7 +534,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
     replies: replies.filter((r) => r.parent.toString() === c._id.toString()),
   }));
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Task fetched successfully",
     data: {
@@ -548,7 +548,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "updateTask",
- *   "route": "PUT /tasks/:taskId",
+ *   "route": "PUT /api/tasks/:taskId",
  *   "purpose": "Update a task of any type.",
  *   "transaction": true,
  *   "returns": "Updated task object with all relationships populated"
@@ -576,7 +576,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     actualCost,
     currency,
     date,
-    materialIds,
+    materials,
   } = req.validated.body;
 
   const session = await mongoose.startSession();
@@ -586,11 +586,11 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     let task = await BaseTask.findOne({
       _id: taskId,
       organization: orgId,
+      department: deptId,
       isDeleted: false,
     }).session(session);
 
-    if (!task)
-      throw new CustomError("Task not found", 404, "TASK_NOT_FOUND_ERROR");
+    if (!task) throw CustomError.notFound("Task not found");
 
     // Assign base fields if provided
     if (title !== undefined) task.title = title;
@@ -623,12 +623,20 @@ export const updateTask = asyncHandler(async (req, res, next) => {
         costOrCurrencyModified = true;
       }
       if (costOrCurrencyModified) {
-        task.modifiedBy = callerId;
+        // Cast to ProjectTask to access modifiedBy property
+        /** @type {any} */ (task).modifiedBy = callerId;
       }
     } else if (task.taskType === "RoutineTask") {
       if (date !== undefined) task.date = date;
-      if (Array.isArray(materialIds)) {
-        task.materials = materialIds;
+      if (Array.isArray(materials) && materials.length > 0) {
+        // Transform materials from frontend format to backend format
+        const transformedMaterials = await transformMaterialsForStorage(
+          materials,
+          orgId,
+          deptId,
+          session
+        );
+        task.materials = transformedMaterials;
       }
     }
 
@@ -641,6 +649,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
         parentId: task._id,
         parentModel: task.taskType,
         orgId,
+        deptId,
         uploaderId: callerId,
         attachments,
         session,
@@ -654,21 +663,23 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     const populatedTask = await populateTask(task._id, session);
 
     // Notifications & realtime
-    const recipientIds = collectTaskRecipients(task);
-    const notification = await createNotification(session, {
-      type: "Updated",
-      title: "Task Updated",
-      message: `Task "${task.title}" has been updated`,
-      entity: task._id,
-      entityModel: task.taskType,
-      recipients: recipientIds,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "TASK_UPDATED",
+      task,
+      req.user,
+      {
+        session,
+        email: false, // Don't send email for updates (too noisy)
+        realtime: true,
+        emailData: {
+          taskTitle: task.title,
+          taskType: task.taskType,
+        },
+      }
+    );
 
-    if (notification && recipientIds.length > 0) {
-      emitToRecipients(recipientIds, "task:updated", {
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(notificationResult.realtimeRecipients, "task:updated", {
         taskId: task._id,
         title: task.title,
       });
@@ -680,7 +691,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Task updated successfully",
       data: populatedTask,
@@ -696,7 +707,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "deleteTask",
- *   "route": "DELETE /tasks/:taskId",
+ *   "route": "DELETE /api/tasks/:taskId",
  *   "purpose": "Soft delete a task with full cascade deletion.",
  *   "transaction": true,
  *   "returns": "Success with deletion timestamp and affected resources count"
@@ -718,8 +729,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
 
-    if (!task)
-      throw new CustomError("Task not found", 404, "TASK_NOT_FOUND_ERROR");
+    if (!task) throw CustomError.notFound("Task not found");
 
     await BaseTask.softDeleteByIdWithCascade(taskId, {
       session,
@@ -727,28 +737,32 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
     });
 
     // Notify watchers/assignees
-    const recipientIds = collectTaskRecipients(task);
-    const notification = await createNotification(session, {
-      type: "Deleted",
-      title: "Task Deleted",
-      message: `Task "${task.title}" has been deleted`,
-      entity: task._id,
-      entityModel: task.taskType,
-      recipients: recipientIds,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "TASK_DELETED",
+      task,
+      req.user,
+      {
+        session,
+        email: true,
+        realtime: true,
+        emailData: {
+          taskTitle: task.title,
+          taskType: task.taskType,
+        },
+      }
+    );
 
-    if (notification && recipientIds.length > 0) {
-      emitToRecipients(recipientIds, "task:deleted", { taskId });
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(notificationResult.realtimeRecipients, "task:deleted", {
+        taskId,
+      });
     }
     emitToDepartment(deptId, "department:task:deleted", { taskId });
     emitToOrganization(orgId, "organization:task:deleted", { taskId });
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Task soft-deleted successfully",
       data: { taskId },
@@ -764,7 +778,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "restoreTask",
- *   "route": "POST /tasks/:taskId/restore",
+ *   "route": "POST /api/tasks/:taskId/restore",
  *   "purpose": "Restore a soft-deleted task with full cascade restoration.",
  *   "transaction": true,
  *   "returns": "Restored task object with all relationships"
@@ -788,11 +802,7 @@ export const restoreTask = asyncHandler(async (req, res, next) => {
       .session(session);
 
     if (!taskWithDeleted || taskWithDeleted.isDeleted !== true) {
-      throw new CustomError(
-        "Soft-deleted task not found",
-        404,
-        "TASK_NOT_FOUND_ERROR"
-      );
+      throw CustomError.notFound("Soft-deleted task not found");
     }
 
     // Restore linked entities (attachments, activities, comments, notifications)
@@ -863,28 +873,32 @@ export const restoreTask = asyncHandler(async (req, res, next) => {
     const restoredTask = await populateTask(taskId, session);
 
     // Notify
-    const recipientIds = collectTaskRecipients(restoredTask);
-    const notification = await createNotification(session, {
-      type: "Restored",
-      title: "Task Restored",
-      message: `Task "${restoredTask.title}" has been restored`,
-      entity: restoredTask._id,
-      entityModel: taskType,
-      recipients: recipientIds,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "TASK_RESTORED",
+      restoredTask,
+      req.user,
+      {
+        session,
+        email: true,
+        realtime: true,
+        emailData: {
+          taskTitle: restoredTask.title,
+          taskType: taskType,
+        },
+      }
+    );
 
-    if (notification && recipientIds.length > 0) {
-      emitToRecipients(recipientIds, "task:restored", { taskId });
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(notificationResult.realtimeRecipients, "task:restored", {
+        taskId,
+      });
     }
     emitToDepartment(deptId, "department:task:restored", { taskId });
     emitToOrganization(orgId, "organization:task:restored", { taskId });
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Task restored successfully",
       data: restoredTask,
@@ -900,7 +914,7 @@ export const restoreTask = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "createTaskActivity",
- *   "route": "POST /tasks/:taskId/activities",
+ *   "route": "POST /api/tasks/:taskId/activities",
  *   "purpose": "Create a new activity log for a specific task.",
  *   "transaction": true,
  *   "returns": "Created activity with relationships"
@@ -911,7 +925,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
   const deptId = req.user.department._id;
   const callerId = req.user._id;
   const { taskId } = req.params;
-  const { activity, attachments, materialIds } = req.validated.body;
+  const { activity, attachments, materials } = req.validated.body;
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -923,14 +937,23 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
 
-    if (!task)
-      throw new CustomError("Task not found", 404, "TASK_NOT_FOUND_ERROR");
+    if (!task) throw CustomError.notFound("Task not found");
 
     if (!["AssignedTask", "ProjectTask"].includes(task.taskType)) {
-      throw new CustomError(
-        "Activities can only be created for AssignedTask or ProjectTask",
-        400,
-        "VALIDATION_ERROR"
+      throw CustomError.validation(
+        "Activities can only be created for AssignedTask or ProjectTask"
+      );
+    }
+
+    // Transform materials from frontend format to backend format
+    /** @type {Array} */
+    let transformedMaterials = [];
+    if (materials && materials.length > 0) {
+      transformedMaterials = await transformMaterialsForStorage(
+        materials,
+        orgId,
+        deptId,
+        session
       );
     }
 
@@ -940,10 +963,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
           task: taskId,
           taskModel: task.taskType,
           activity,
-          materials:
-            Array.isArray(materialIds) && materialIds.length > 0
-              ? materialIds
-              : [],
+          materials: transformedMaterials,
           organization: orgId,
           department: deptId,
           createdBy: callerId,
@@ -957,6 +977,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
       parentId: activityDoc._id,
       parentModel: "TaskActivity",
       orgId,
+      deptId,
       uploaderId: callerId,
       attachments,
       session,
@@ -983,28 +1004,34 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     // Notifications & realtime
-    const recipientIds = collectTaskRecipients(task);
-    const notification = await createNotification(session, {
-      type: "Created",
-      title: "Activity Logged",
-      message: `An activity was added to "${task.title}"`,
-      entity: activityDoc._id,
-      entityModel: "TaskActivity",
-      recipients: recipientIds,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "ACTIVITY_LOGGED",
+      { ...activityDoc.toObject(), task },
+      req.user,
+      {
+        session,
+        email: false, // Don't send email for activity logs (too noisy)
+        realtime: true,
+        emailData: {
+          taskTitle: task.title,
+          taskType: task.taskType,
+        },
+      }
+    );
 
-    if (notification && recipientIds.length > 0) {
-      emitToRecipients(recipientIds, "activity:created", {
-        taskId,
-        activityId: activityDoc._id,
-      });
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(
+        notificationResult.realtimeRecipients,
+        "activity:created",
+        {
+          taskId,
+          activityId: activityDoc._id,
+        }
+      );
     }
     emitToDepartment(deptId, "department:activity:created", {
       taskId,
@@ -1017,7 +1044,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Activity created successfully",
       data: populatedActivity,
@@ -1033,7 +1060,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
 /**
  * @json {
  *   "controller": "getAllTaskActivities",
- *   "route": "GET /tasks/:taskId/activities",
+ *   "route": "GET /api/tasks/:taskId/activities",
  *   "purpose": "List all activities for a specific task with pagination.",
  *   "transaction": false,
  *   "returns": "Activities array with pagination metadata"
@@ -1072,14 +1099,14 @@ export const getAllTaskActivities = asyncHandler(async (req, res, next) => {
       {
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       },
     ],
   };
 
   const result = await TaskActivity.paginate(query.getFilter(), options);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Activities fetched successfully",
     pagination: {
@@ -1123,12 +1150,12 @@ export const getTaskActivity = asyncHandler(async (req, res, next) => {
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     });
 
-  if (!activity) throw new CustomError("Activity not found", 404, "NOT_FOUND");
+  if (!activity) throw CustomError.notFound("Activity not found");
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Activity fetched successfully",
     data: activity,
@@ -1149,7 +1176,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
   const deptId = req.user.department._id;
   const callerId = req.user._id;
   const { activityId } = req.params;
-  const { activity, attachments, materialIds } = req.validated.body;
+  const { activity, attachments, materials } = req.validated.body;
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -1161,10 +1188,19 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
 
-    if (!act) throw new CustomError("Activity not found", 404, "NOT_FOUND");
+    if (!act) throw CustomError.notFound("Activity not found");
 
     if (activity !== undefined) act.activity = activity;
-    if (Array.isArray(materialIds)) act.materials = materialIds;
+    if (Array.isArray(materials) && materials.length > 0) {
+      // Transform materials from frontend format to backend format
+      const transformedMaterials = await transformMaterialsForStorage(
+        materials,
+        orgId,
+        deptId,
+        session
+      );
+      act.materials = transformedMaterials;
+    }
 
     await act.save({ session });
 
@@ -1193,29 +1229,35 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     // Notify task stakeholders
     const task = await BaseTask.findById(act.task).session(session);
-    const recipients = collectTaskRecipients(task);
-    const notification = await createNotification(session, {
-      type: "Updated",
-      title: "Activity Updated",
-      message: `An activity was updated on "${task.title}"`,
-      entity: act._id,
-      entityModel: "TaskActivity",
-      recipients,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "ACTIVITY_UPDATED",
+      { ...act.toObject(), task },
+      req.user,
+      {
+        session,
+        email: false, // Don't send email for activity updates (too noisy)
+        realtime: true,
+        emailData: {
+          taskTitle: task.title,
+          taskType: task.taskType,
+        },
+      }
+    );
 
-    if (notification && recipients.length > 0) {
-      emitToRecipients(recipients, "activity:updated", {
-        taskId: String(task._id),
-        activityId: String(act._id),
-      });
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(
+        notificationResult.realtimeRecipients,
+        "activity:updated",
+        {
+          taskId: String(task._id),
+          activityId: String(act._id),
+        }
+      );
     }
     emitToDepartment(deptId, "department:activity:updated", {
       taskId: String(task._id),
@@ -1228,7 +1270,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Activity updated successfully",
       data: populated,
@@ -1266,7 +1308,7 @@ export const deleteTaskActivity = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
 
-    if (!act) throw new CustomError("Activity not found", 404, "NOT_FOUND");
+    if (!act) throw CustomError.notFound("Activity not found");
 
     await TaskActivity.softDeleteByIdWithCascade(activityId, {
       session,
@@ -1274,24 +1316,30 @@ export const deleteTaskActivity = asyncHandler(async (req, res, next) => {
     });
 
     const task = await BaseTask.findById(act.task).session(session);
-    const recipients = collectTaskRecipients(task);
-    const notification = await createNotification(session, {
-      type: "Deleted",
-      title: "Activity Deleted",
-      message: `An activity was deleted from "${task.title}"`,
-      entity: act._id,
-      entityModel: "TaskActivity",
-      recipients,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "ACTIVITY_DELETED",
+      { ...act.toObject(), task },
+      req.user,
+      {
+        session,
+        email: false, // Don't send email for activity deletions (too noisy)
+        realtime: true,
+        emailData: {
+          taskTitle: task.title,
+          taskType: task.taskType,
+        },
+      }
+    );
 
-    if (notification && recipients.length > 0) {
-      emitToRecipients(recipients, "activity:deleted", {
-        taskId: String(task._id),
-        activityId: String(act._id),
-      });
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(
+        notificationResult.realtimeRecipients,
+        "activity:deleted",
+        {
+          taskId: String(task._id),
+          activityId: String(act._id),
+        }
+      );
     }
     emitToDepartment(deptId, "department:activity:deleted", {
       taskId: String(task._id),
@@ -1304,7 +1352,7 @@ export const deleteTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Activity soft-deleted successfully",
       data: { activityId },
@@ -1344,11 +1392,7 @@ export const restoreTaskActivity = asyncHandler(async (req, res, next) => {
       .session(session);
 
     if (!actWithDeleted || actWithDeleted.isDeleted !== true) {
-      throw new CustomError(
-        "Soft-deleted activity not found",
-        404,
-        "NOT_FOUND"
-      );
+      throw CustomError.notFound("Soft-deleted activity not found");
     }
 
     // Restore linked comments and attachments
@@ -1384,28 +1428,34 @@ export const restoreTaskActivity = asyncHandler(async (req, res, next) => {
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     const task = await BaseTask.findById(restored.task).session(session);
-    const recipients = collectTaskRecipients(task);
-    const notification = await createNotification(session, {
-      type: "Restored",
-      title: "Activity Restored",
-      message: `An activity was restored on "${task.title}"`,
-      entity: restored._id,
-      entityModel: "TaskActivity",
-      recipients,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
+    const notificationResult = await notificationService.send(
+      "ACTIVITY_RESTORED",
+      { ...restored.toObject(), task },
+      req.user,
+      {
+        session,
+        email: false, // Don't send email for activity restores (too noisy)
+        realtime: true,
+        emailData: {
+          taskTitle: task.title,
+          taskType: task.taskType,
+        },
+      }
+    );
 
-    if (notification && recipients.length > 0) {
-      emitToRecipients(recipients, "activity:restored", {
-        taskId: String(task._id),
-        activityId: String(restored._id),
-      });
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(
+        notificationResult.realtimeRecipients,
+        "activity:restored",
+        {
+          taskId: String(task._id),
+          activityId: String(restored._id),
+        }
+      );
     }
     emitToDepartment(deptId, "department:activity:restored", {
       taskId: String(task._id),
@@ -1418,7 +1468,7 @@ export const restoreTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Activity restored successfully",
       data: restored,
@@ -1471,6 +1521,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
       parentId: com._id,
       parentModel: "TaskComment",
       orgId,
+      deptId,
       uploaderId: callerId,
       attachments,
       session,
@@ -1486,7 +1537,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
       .populate({
         path: "mentions",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       })
       .populate({
         path: "attachments",
@@ -1495,26 +1546,33 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     // Notifications: Mention recipients
-    const recipients = Array.isArray(mentionIds) ? mentionIds : [];
-    const notification = await createNotification(session, {
-      type: "Mention",
-      title: "You were mentioned",
-      message: `${req.user.firstName} mentioned you in a comment`,
-      entity: com._id,
-      entityModel: "TaskComment",
-      recipients,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
-    if (notification && recipients.length > 0) {
-      emitToRecipients(recipients, "comment:created", {
-        commentId: String(com._id),
-      });
+    const notificationResult = await notificationService.send(
+      "COMMENT_ADDED",
+      com,
+      req.user,
+      {
+        session,
+        email: true,
+        realtime: true,
+        explicitRecipients: Array.isArray(mentionIds) ? mentionIds : [],
+        emailData: {
+          taskTitle: "Comment",
+          taskType: "TaskComment",
+        },
+      }
+    );
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(
+        notificationResult.realtimeRecipients,
+        "comment:created",
+        {
+          commentId: String(com._id),
+        }
+      );
     }
     emitToDepartment(deptId, "department:comment:created", {
       commentId: String(com._id),
@@ -1525,7 +1583,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Comment created successfully",
       data: populated,
@@ -1581,13 +1639,13 @@ export const getAllTaskComments = asyncHandler(async (req, res, next) => {
       {
         path: "mentions",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       },
       { path: "attachments", match: { isDeleted: false } },
       {
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       },
     ],
   });
@@ -1604,13 +1662,13 @@ export const getAllTaskComments = asyncHandler(async (req, res, next) => {
       .populate({
         path: "mentions",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       })
       .populate({ path: "attachments", match: { isDeleted: false } })
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     const childrenByParent = childComments.reduce((acc, c) => {
@@ -1625,7 +1683,7 @@ export const getAllTaskComments = asyncHandler(async (req, res, next) => {
     }));
   }
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Comments fetched successfully",
     pagination: {
@@ -1661,16 +1719,16 @@ export const getTaskComment = asyncHandler(async (req, res, next) => {
     .populate({
       path: "mentions",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .populate({ path: "attachments", match: { isDeleted: false } })
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     });
 
-  if (!comment) throw new CustomError("Comment not found", 404, "NOT_FOUND");
+  if (!comment) throw CustomError.notFound("Comment not found");
 
   // Fetch replies (one level for brevity)
   const replies = await TaskComment.find({
@@ -1682,17 +1740,17 @@ export const getTaskComment = asyncHandler(async (req, res, next) => {
     .populate({
       path: "mentions",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .populate({ path: "attachments", match: { isDeleted: false } })
     .populate({
       path: "createdBy",
       match: { isDeleted: false },
-      select: "firstName lastName role department",
+      select: "firstName lastName fullName role department profilePicture",
     })
     .sort({ createdAt: 1 });
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Comment fetched successfully",
     data: { ...comment.toObject(), replies },
@@ -1725,7 +1783,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
 
-    if (!com) throw new CustomError("Comment not found", 404, "NOT_FOUND");
+    if (!com) throw CustomError.notFound("Comment not found");
 
     if (comment !== undefined) com.comment = comment;
     if (Array.isArray(mentionIds)) com.mentions = mentionIds;
@@ -1737,6 +1795,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
         parentId: com._id,
         parentModel: "TaskComment",
         orgId,
+        deptId,
         uploaderId: callerId,
         attachments,
         session,
@@ -1752,32 +1811,39 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
       .populate({
         path: "mentions",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       })
       .populate({ path: "attachments", match: { isDeleted: false } })
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     // Notify mentions
-    const recipients = Array.isArray(mentionIds) ? mentionIds : [];
-    const notification = await createNotification(session, {
-      type: "Updated",
-      title: "Comment Updated",
-      message: "A comment you are mentioned in was updated",
-      entity: com._id,
-      entityModel: "TaskComment",
-      recipients,
-      organization: orgId,
-      department: deptId,
-      createdBy: callerId,
-    });
-    if (notification && recipients.length > 0) {
-      emitToRecipients(recipients, "comment:updated", {
-        commentId: String(com._id),
-      });
+    const notificationResult = await notificationService.send(
+      "COMMENT_UPDATED",
+      com,
+      req.user,
+      {
+        session,
+        email: false, // Don't send email for comment updates (too noisy)
+        realtime: true,
+        explicitRecipients: Array.isArray(mentionIds) ? mentionIds : [],
+        emailData: {
+          taskTitle: "Comment",
+          taskType: "TaskComment",
+        },
+      }
+    );
+    if (notificationResult.realtimeRecipients.length > 0) {
+      emitToRecipients(
+        notificationResult.realtimeRecipients,
+        "comment:updated",
+        {
+          commentId: String(com._id),
+        }
+      );
     }
     emitToDepartment(deptId, "department:comment:updated", {
       commentId: String(com._id),
@@ -1788,7 +1854,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Comment updated successfully",
       data: populated,
@@ -1826,7 +1892,7 @@ export const deleteTaskComment = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
 
-    if (!com) throw new CustomError("Comment not found", 404, "NOT_FOUND");
+    if (!com) throw CustomError.notFound("Comment not found");
 
     await TaskComment.softDeleteByIdWithCascade(commentId, {
       session,
@@ -1842,7 +1908,7 @@ export const deleteTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Comment soft-deleted successfully",
       data: { commentId },
@@ -1882,7 +1948,7 @@ export const restoreTaskComment = asyncHandler(async (req, res, next) => {
       .session(session);
 
     if (!comWithDeleted || comWithDeleted.isDeleted !== true) {
-      throw new CustomError("Soft-deleted comment not found", 404, "NOT_FOUND");
+      throw CustomError.notFound("Soft-deleted comment not found");
     }
 
     await restoreCommentTree(commentId, session);
@@ -1892,13 +1958,13 @@ export const restoreTaskComment = asyncHandler(async (req, res, next) => {
       .populate({
         path: "mentions",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       })
       .populate({ path: "attachments", match: { isDeleted: false } })
       .populate({
         path: "createdBy",
         match: { isDeleted: false },
-        select: "firstName lastName role department",
+        select: "firstName lastName fullName role department profilePicture",
       });
 
     emitToDepartment(deptId, "department:comment:restored", {
@@ -1910,7 +1976,7 @@ export const restoreTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Comment restored successfully",
       data: restored,

@@ -1,7 +1,10 @@
 // backend/routes/organizationRoutes.js
 import express from "express";
 import { verifyJWT } from "../middlewares/authMiddleware.js";
-import { authorize } from "../middlewares/authorization.js";
+import {
+  authorize,
+  requirePlatformUser,
+} from "../middlewares/authorization.js";
 import {
   validateGetAllOrganizations,
   validateGetOrganization,
@@ -25,14 +28,14 @@ router.use(verifyJWT);
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/organizations",
- *   "description": "List organizations based on user authorization",
- *   "validators": ["validateGetAllOrganizations"],
- *   "controller": "getAllOrganizations"
+ *   "path": "/api/organizations",
+ *   "middleware": ["verifyJWT", "authorize('Organization', 'read')", "validateGetAllOrganizations"],
+ *   "controller": "getAllOrganizations",
+ *   "description": "List organizations based on user authorization"
  * }
  */
 router.get(
-  "/organizations",
+  "/",
   authorize("Organization", "read"),
   validateGetAllOrganizations,
   getAllOrganizations
@@ -41,14 +44,14 @@ router.get(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/organizations/:organizationId",
- *   "description": "Get single organization by ID with complete dashboard data",
- *   "validators": ["validateGetOrganization"],
- *   "controller": "getOrganization"
+ *   "path": "/api/organizations/:organizationId",
+ *   "middleware": ["verifyJWT", "authorize('Organization', 'read')", "validateGetOrganization"],
+ *   "controller": "getOrganizationDashboard",
+ *   "description": "Get single organization by ID with complete dashboard data"
  * }
  */
 router.get(
-  "/organizations/:organizationId",
+  "/:organizationId",
   authorize("Organization", "read"),
   validateGetOrganization,
   getOrganizationDashboard
@@ -57,14 +60,14 @@ router.get(
 /**
  * @json {
  *   "method": "PUT",
- *   "path": "/organizations/:organizationId",
- *   "description": "Update organization details",
- *   "validators": ["validateUpdateOrganization"],
- *   "controller": "updateOrganization"
+ *   "path": "/api/organizations/:organizationId",
+ *   "middleware": ["verifyJWT", "authorize('Organization', 'update')", "validateUpdateOrganization"],
+ *   "controller": "updateOrganization",
+ *   "description": "Update organization details"
  * }
  */
 router.put(
-  "/organizations/:organizationId",
+  "/:organizationId",
   authorize("Organization", "update"),
   validateUpdateOrganization,
   updateOrganization
@@ -73,14 +76,15 @@ router.put(
 /**
  * @json {
  *   "method": "DELETE",
- *   "path": "/organizations/:organizationId",
- *   "description": "Soft delete an organization with full cascade deletion",
- *   "validators": ["validateDeleteOrganization"],
- *   "controller": "deleteOrganization"
+ *   "path": "/api/organizations/:organizationId",
+ *   "middleware": ["verifyJWT", "requirePlatformUser", "authorize('Organization', 'delete')", "validateDeleteOrganization"],
+ *   "controller": "deleteOrganization",
+ *   "description": "Soft delete an organization with full cascade deletion (Platform users only)"
  * }
  */
 router.delete(
-  "/organizations/:organizationId",
+  "/:organizationId",
+  requirePlatformUser,
   authorize("Organization", "delete"),
   validateDeleteOrganization,
   deleteOrganization
@@ -88,15 +92,16 @@ router.delete(
 
 /**
  * @json {
- *   "method": "POST",
- *   "path": "/organizations/:organizationId/restore",
- *   "description": "Restore a soft-deleted organization",
- *   "validators": ["validateRestoreOrganization"],
- *   "controller": "restoreOrganization"
+ *   "method": "PATCH",
+ *   "path": "/api/organizations/:organizationId/restore",
+ *   "middleware": ["verifyJWT", "requirePlatformUser", "authorize('Organization', 'update')", "validateRestoreOrganization"],
+ *   "controller": "restoreOrganization",
+ *   "description": "Restore a soft-deleted organization (Platform users only)"
  * }
  */
-router.post(
-  "/organizations/:organizationId/restore",
+router.patch(
+  "/:organizationId/restore",
+  requirePlatformUser,
   authorize("Organization", "update"),
   validateRestoreOrganization,
   restoreOrganization

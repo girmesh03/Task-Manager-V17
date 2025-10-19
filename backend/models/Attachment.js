@@ -123,9 +123,10 @@ const AttachmentSchema = new mongoose.Schema(
       validate: {
         validator: function (v) {
           // Validate publicId format (should not be empty and should be a valid string)
-          return v && typeof v === 'string' && v.length > 0 && v.length <= 255;
+          return v && typeof v === "string" && v.length > 0 && v.length <= 255;
         },
-        message: "Cloudinary publicId must be a valid non-empty string (max 255 characters)",
+        message:
+          "Cloudinary publicId must be a valid non-empty string (max 255 characters)",
       },
     },
     format: { type: String, trim: true },
@@ -167,6 +168,10 @@ const AttachmentSchema = new mongoose.Schema(
       virtuals: true,
       transform(doc, ret) {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -174,6 +179,10 @@ const AttachmentSchema = new mongoose.Schema(
       virtuals: true,
       transform(doc, ret) {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -274,15 +283,25 @@ AttachmentSchema.post("updateOne", async function () {
         // Schedule cleanup (this could be enhanced with a job queue in production)
         setTimeout(async () => {
           try {
-            const { deleteFromCloudinary } = await import("../services/cloudinaryService.js");
+            const { deleteFromCloudinary } = await import(
+              "../services/cloudinaryService.js"
+            );
             const result = await deleteFromCloudinary(doc.publicId);
             if (result.success) {
-              console.log(`Successfully deleted file from Cloudinary: ${doc.publicId}`);
+              console.log(
+                `Successfully deleted file from Cloudinary: ${doc.publicId}`
+              );
             } else {
-              console.error(`Failed to delete file from Cloudinary: ${doc.publicId}`, result.error);
+              console.error(
+                `Failed to delete file from Cloudinary: ${doc.publicId}`,
+                result.error
+              );
             }
           } catch (error) {
-            console.error(`Error during Cloudinary cleanup for ${doc.publicId}:`, error);
+            console.error(
+              `Error during Cloudinary cleanup for ${doc.publicId}:`,
+              error
+            );
           }
         }, 5000); // 5 second delay to allow for potential restoration
       }
@@ -307,24 +326,35 @@ AttachmentSchema.statics.initializeTTL = function () {
 
 // Validate Cloudinary URL and extract metadata
 AttachmentSchema.statics.validateCloudinaryUrl = async function (url) {
-  const { validateCloudinaryUrl } = await import("../services/cloudinaryService.js");
+  const { validateCloudinaryUrl } = await import(
+    "../services/cloudinaryService.js"
+  );
   return validateCloudinaryUrl(url);
 };
 
 // Extract metadata from Cloudinary URL
 AttachmentSchema.statics.extractCloudinaryMetadata = async function (url) {
-  const { extractCloudinaryMetadata } = await import("../services/cloudinaryService.js");
+  const { extractCloudinaryMetadata } = await import(
+    "../services/cloudinaryService.js"
+  );
   return extractCloudinaryMetadata(url);
 };
 
 // Cleanup soft-deleted attachments from Cloudinary
 AttachmentSchema.statics.cleanupSoftDeleted = async function (daysOld = 30) {
-  const { cleanupSoftDeletedAttachments } = await import("../services/cloudinaryService.js");
+  const { cleanupSoftDeletedAttachments } = await import(
+    "../services/cloudinaryService.js"
+  );
   return cleanupSoftDeletedAttachments(daysOld);
 };
 
 // Get attachments by parent with secure access validation
-AttachmentSchema.statics.getByParentSecure = async function (parentId, parentModel, organizationId, options = {}) {
+AttachmentSchema.statics.getByParentSecure = async function (
+  parentId,
+  parentModel,
+  organizationId,
+  options = {}
+) {
   const query = {
     parent: parentId,
     parentModel,
@@ -337,7 +367,7 @@ AttachmentSchema.statics.getByParentSecure = async function (parentId, parentMod
   }
 
   const attachments = await this.find(query)
-    .populate('uploadedBy', 'firstName lastName email')
+    .populate("uploadedBy", "firstName lastName email")
     .sort({ createdAt: -1 })
     .limit(options.limit || 50);
 
@@ -345,7 +375,12 @@ AttachmentSchema.statics.getByParentSecure = async function (parentId, parentMod
 };
 
 // Bulk soft delete attachments by parent
-AttachmentSchema.statics.bulkSoftDeleteByParent = async function (parentId, parentModel, organizationId, { session, deletedBy } = {}) {
+AttachmentSchema.statics.bulkSoftDeleteByParent = async function (
+  parentId,
+  parentModel,
+  organizationId,
+  { session, deletedBy } = {}
+) {
   const attachments = await this.find({
     parent: parentId,
     parentModel,
@@ -353,7 +388,7 @@ AttachmentSchema.statics.bulkSoftDeleteByParent = async function (parentId, pare
     isDeleted: false,
   }).session(session);
 
-  const updatePromises = attachments.map(attachment =>
+  const updatePromises = attachments.map((attachment) =>
     this.softDeleteById(attachment._id, { session, deletedBy })
   );
 
@@ -361,31 +396,35 @@ AttachmentSchema.statics.bulkSoftDeleteByParent = async function (parentId, pare
 
   return {
     deletedCount: attachments.length,
-    deletedIds: attachments.map(att => att._id),
+    deletedIds: attachments.map((att) => att._id),
   };
 };
 
 // Validate file access permissions
-AttachmentSchema.methods.validateAccess = async function (userId, userRole, userOrganization) {
+AttachmentSchema.methods.validateAccess = async function (
+  userId,
+  userRole,
+  userOrganization
+) {
   // Check organization access
   if (!this.organization.equals(userOrganization)) {
-    return { hasAccess: false, reason: 'Organization mismatch' };
+    return { hasAccess: false, reason: "Organization mismatch" };
   }
 
   // Check if user is the uploader
   if (this.uploadedBy.equals(userId)) {
-    return { hasAccess: true, reason: 'Owner access' };
+    return { hasAccess: true, reason: "Owner access" };
   }
 
   // Check if user has admin privileges
   const { HEAD_OF_DEPARTMENT_ROLES } = await import("../utils/constants.js");
   if (HEAD_OF_DEPARTMENT_ROLES.includes(userRole)) {
-    return { hasAccess: true, reason: 'Admin access' };
+    return { hasAccess: true, reason: "Admin access" };
   }
 
   // For other users, check if they have access to the parent entity
   // This would need to be implemented based on the parent model's access rules
-  return { hasAccess: true, reason: 'Default access' }; // Simplified for now
+  return { hasAccess: true, reason: "Default access" }; // Simplified for now
 };
 
 export const Attachment = mongoose.model("Attachment", AttachmentSchema);

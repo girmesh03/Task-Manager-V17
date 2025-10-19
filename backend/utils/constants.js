@@ -71,6 +71,10 @@ export const MATERIAL_CATEGORIES = [
   "Mechanical",
   "Plumbing",
   "Hardware",
+  "Cleaning",
+  "Textiles",
+  "Consumables",
+  "Construction",
   "Other",
 ];
 
@@ -147,8 +151,8 @@ export const MAX_DESCRIPTION_LENGTH = 2000;
 export const MAX_ACTIVITY_LENGTH = 2000;
 export const MAX_COMMENT_LENGTH = 2000;
 export const MAX_TAG_LENGTH = 50;
-export const MAX_SKILL_NAME_LENGTH = 20;
-export const MAX_MATERIAL_NAME_LENGTH = 20;
+export const MAX_SKILL_NAME_LENGTH = 50;
+export const MAX_MATERIAL_NAME_LENGTH = 50;
 export const MAX_FILENAME_LENGTH = 200;
 export const MAX_ORG_NAME_LENGTH = 100;
 export const MAX_ORG_DESCRIPTION_LENGTH = 500;
