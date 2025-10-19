@@ -48,11 +48,10 @@ export const createUser = asyncHandler(async (req, res, next) => {
       isDeleted: false,
     }).session(session);
     if (!dept)
-      throw new CustomError(
-        "Department not found in your organization",
-        404,
-        "DEPT_NOT_FOUND"
-      );
+      throw CustomError.notFound("Department not found in your organization", {
+        departmentId,
+        organizationId: orgId,
+      });
 
     const user = new User({
       firstName,
@@ -99,10 +98,29 @@ export const createUser = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "user:created", { userId: user._id });
 
     await session.commitTransaction();
-    return res.status(201).json({
+    const createdUser = await User.findById(user._id)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name description organization createdBy createdAt",
+        populate: {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .lean();
+
+    res.status(201).json({
       success: true,
       message: "User created successfully",
-      data: await User.findById(user._id).lean(),
+      data: createdUser,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -121,8 +139,9 @@ export const createUser = asyncHandler(async (req, res, next) => {
  *   "returns": "Users array with basic profile information and pagination metadata"
  * }
  */
-export const getAllUsers = asyncHandler(async (req, res) => {
+export const getAllUsers = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
+  const caller = req.user;
   const {
     page = 1,
     limit = 10,
@@ -136,7 +155,12 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   } = req.validated.query;
 
   const filter = { organization: orgId };
-  if (departmentId) filter.department = departmentId;
+  if (departmentId) {
+    filter.department = departmentId;
+  } else {
+    filter.department = caller.department._id;
+  }
+
   if (role) filter.role = role;
   if (position) filter.position = new RegExp(position, "i");
   if (search) {
@@ -180,7 +204,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 
   const result = await query.paginate(filter, options);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Users fetched successfully",
     pagination: {
@@ -204,7 +228,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
  *   "returns": "User object with related data"
  * }
  */
-export const getUser = asyncHandler(async (req, res) => {
+export const getUser = asyncHandler(async (req, res, next) => {
   const { userId } = req.validated.params;
   const orgId = req.user.organization._id;
 
@@ -224,7 +248,11 @@ export const getUser = asyncHandler(async (req, res) => {
       select: "_id name",
     })
     .lean();
-  if (!user) throw new CustomError("User not found", 404, "USER_NOT_FOUND");
+  if (!user)
+    throw CustomError.notFound("User not found", {
+      userId,
+      organizationId: orgId,
+    });
 
   const [assignedTasks, completedCount, inProgressCount] = await Promise.all([
     AssignedTask.find({
@@ -248,7 +276,7 @@ export const getUser = asyncHandler(async (req, res) => {
     }),
   ]);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "User fetched successfully",
     data: {
@@ -296,7 +324,11 @@ export const updateUserBy = asyncHandler(async (req, res, next) => {
       _id: userId,
       organization: orgId,
     }).session(session);
-    if (!user) throw new CustomError("User not found", 404, "USER_NOT_FOUND");
+    if (!user)
+      throw CustomError.notFound("User not found", {
+        userId,
+        organizationId: orgId,
+      });
 
     if (departmentId) {
       const dept = await Department.findOne({
@@ -305,11 +337,10 @@ export const updateUserBy = asyncHandler(async (req, res, next) => {
         isDeleted: false,
       }).session(session);
       if (!dept)
-        throw new CustomError(
-          "Target department not found",
-          404,
-          "DEPT_NOT_FOUND"
-        );
+        throw CustomError.notFound("Target department not found", {
+          departmentId,
+          organizationId: orgId,
+        });
       user.department = departmentId;
     }
 
@@ -351,10 +382,29 @@ export const updateUserBy = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "user:updated", { userId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    const updatedUser = await User.findById(userId)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name description organization createdBy createdAt",
+        populate: {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .lean();
+
+    res.status(200).json({
       success: true,
       message: "User updated successfully",
-      data: await User.findById(userId).lean(),
+      data: updatedUser,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -390,11 +440,10 @@ export const updateMyProfile = asyncHandler(async (req, res, next) => {
   } = req.validated.body;
 
   if (String(userId) !== String(req.user._id)) {
-    throw new CustomError(
-      "You can only update your own profile",
-      403,
-      "FORBIDDEN"
-    );
+    throw CustomError.authorization("You can only update your own profile", {
+      userId,
+      authenticatedUserId: req.user._id,
+    });
   }
 
   const session = await mongoose.startSession();
@@ -403,7 +452,10 @@ export const updateMyProfile = asyncHandler(async (req, res, next) => {
     const user = await User.findOne({ _id: userId })
       .select("+password")
       .session(session);
-    if (!user) throw new CustomError("User not found", 404, "USER_NOT_FOUND");
+    if (!user)
+      throw CustomError.notFound("User not found", {
+        userId,
+      });
 
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
@@ -434,10 +486,29 @@ export const updateMyProfile = asyncHandler(async (req, res, next) => {
     emitToUser(user._id, "user:profile-updated", { userId: user._id });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    const updatedProfile = await User.findById(userId)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name description organization createdBy createdAt",
+        populate: {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .lean();
+
+    res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      data: await User.findById(userId).lean(),
+      data: updatedProfile,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -456,14 +527,13 @@ export const updateMyProfile = asyncHandler(async (req, res, next) => {
  *   "returns": "User account object with security-related information"
  * }
  */
-export const getMyAccount = asyncHandler(async (req, res) => {
+export const getMyAccount = asyncHandler(async (req, res, next) => {
   const { userId } = req.validated.params;
   if (String(userId) !== String(req.user._id)) {
-    throw new CustomError(
-      "You can only access your own account",
-      403,
-      "FORBIDDEN"
-    );
+    throw CustomError.authorization("You can only access your own account", {
+      userId,
+      authenticatedUserId: req.user._id,
+    });
   }
 
   const user = await User.findById(userId)
@@ -479,7 +549,7 @@ export const getMyAccount = asyncHandler(async (req, res) => {
     })
     .lean();
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Account fetched successfully",
     data: {
@@ -503,16 +573,15 @@ export const getMyAccount = asyncHandler(async (req, res) => {
  *   "returns": "User profile object with personal data"
  * }
  */
-export const getMyProfile = asyncHandler(async (req, res) => {
+export const getMyProfile = asyncHandler(async (req, res, next) => {
   const { userId } = req.validated.params;
   const { includeSkills, includeStats } = req.validated.query;
 
   if (String(userId) !== String(req.user._id)) {
-    throw new CustomError(
-      "You can only access your own profile",
-      403,
-      "FORBIDDEN"
-    );
+    throw CustomError.authorization("You can only access your own profile", {
+      userId,
+      authenticatedUserId: req.user._id,
+    });
   }
 
   const user = await User.findById(userId)
@@ -527,7 +596,10 @@ export const getMyProfile = asyncHandler(async (req, res) => {
       select: "_id name",
     })
     .lean();
-  if (!user) throw new CustomError("User not found", 404, "USER_NOT_FOUND");
+  if (!user)
+    throw CustomError.notFound("User not found", {
+      userId,
+    });
 
   let stats = null;
   if (includeStats) {
@@ -553,7 +625,7 @@ export const getMyProfile = asyncHandler(async (req, res) => {
     };
   }
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Profile fetched successfully",
     data: {
@@ -599,7 +671,7 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
     emitToDepartment(deptId, "user:deleted", { userId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "User soft-deleted successfully",
       data: { userId, deletedAt: new Date().toISOString() },
@@ -631,7 +703,24 @@ export const restoreUser = asyncHandler(async (req, res, next) => {
   session.startTransaction();
   try {
     await User.restoreById(userId, { session });
-    const restored = await User.findById(userId).session(session);
+    const restored = await User.findById(userId)
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name description organization createdBy createdAt",
+        populate: {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select:
+          "_id name description email phone address industry logoUrl createdBy createdAt",
+      })
+      .session(session);
 
     await createNotification(session, {
       type: "Restored",
@@ -648,7 +737,7 @@ export const restoreUser = asyncHandler(async (req, res, next) => {
     emitToDepartment(restored.department, "user:restored", { userId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "User restored successfully",
       data: restored,
@@ -669,16 +758,21 @@ export const restoreUser = asyncHandler(async (req, res, next) => {
  *   "returns": "User email preferences object"
  * }
  */
-export const getEmailPreferences = asyncHandler(async (req, res) => {
+export const getEmailPreferences = asyncHandler(async (req, res, next) => {
   const { userId } = req.validated.params;
   const orgId = req.user.organization._id;
 
   // Users can only access their own preferences, or admins can access any user's preferences
-  if (String(userId) !== String(req.user._id) && !HEAD_OF_DEPARTMENT_ROLES.includes(req.user.role)) {
-    throw new CustomError(
+  if (
+    String(userId) !== String(req.user._id) &&
+    !HEAD_OF_DEPARTMENT_ROLES.includes(req.user.role)
+  ) {
+    throw CustomError.authorization(
       "You can only access your own email preferences",
-      403,
-      "AUTHORIZATION_ERROR"
+      {
+        userId,
+        authenticatedUserId: req.user._id,
+      }
     );
   }
 
@@ -686,10 +780,13 @@ export const getEmailPreferences = asyncHandler(async (req, res) => {
     _id: userId,
     organization: orgId,
     isDeleted: false,
-  }).select('emailPreferences firstName lastName email');
+  }).select("emailPreferences firstName lastName email");
 
   if (!user) {
-    throw new CustomError("User not found", 404, "NOT_FOUND_ERROR");
+    throw CustomError.notFound("User not found", {
+      userId,
+      organizationId: orgId,
+    });
   }
 
   res.status(200).json({
@@ -721,7 +818,7 @@ export const getEmailPreferences = asyncHandler(async (req, res) => {
  *   "returns": "Updated email preferences object"
  * }
  */
-export const updateEmailPreferences = asyncHandler(async (req, res) => {
+export const updateEmailPreferences = asyncHandler(async (req, res, next) => {
   const { userId } = req.validated.params;
   const orgId = req.user.organization._id;
   const {
@@ -735,11 +832,16 @@ export const updateEmailPreferences = asyncHandler(async (req, res) => {
   } = req.validated.body;
 
   // Users can only update their own preferences, or admins can update any user's preferences
-  if (String(userId) !== String(req.user._id) && !HEAD_OF_DEPARTMENT_ROLES.includes(req.user.role)) {
-    throw new CustomError(
+  if (
+    String(userId) !== String(req.user._id) &&
+    !HEAD_OF_DEPARTMENT_ROLES.includes(req.user.role)
+  ) {
+    throw CustomError.authorization(
       "You can only update your own email preferences",
-      403,
-      "AUTHORIZATION_ERROR"
+      {
+        userId,
+        authenticatedUserId: req.user._id,
+      }
     );
   }
 
@@ -750,18 +852,40 @@ export const updateEmailPreferences = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new CustomError("User not found", 404, "NOT_FOUND_ERROR");
+    throw CustomError.notFound("User not found", {
+      userId,
+      organizationId: orgId,
+    });
   }
 
   // Update email preferences
   const updatedPreferences = {
-    enabled: enabled !== undefined ? enabled : user.emailPreferences?.enabled ?? true,
-    taskNotifications: taskNotifications !== undefined ? taskNotifications : user.emailPreferences?.taskNotifications ?? true,
-    taskReminders: taskReminders !== undefined ? taskReminders : user.emailPreferences?.taskReminders ?? true,
-    mentions: mentions !== undefined ? mentions : user.emailPreferences?.mentions ?? true,
-    announcements: announcements !== undefined ? announcements : user.emailPreferences?.announcements ?? true,
-    welcomeEmails: welcomeEmails !== undefined ? welcomeEmails : user.emailPreferences?.welcomeEmails ?? true,
-    passwordReset: passwordReset !== undefined ? passwordReset : user.emailPreferences?.passwordReset ?? true,
+    enabled:
+      enabled !== undefined ? enabled : user.emailPreferences?.enabled ?? true,
+    taskNotifications:
+      taskNotifications !== undefined
+        ? taskNotifications
+        : user.emailPreferences?.taskNotifications ?? true,
+    taskReminders:
+      taskReminders !== undefined
+        ? taskReminders
+        : user.emailPreferences?.taskReminders ?? true,
+    mentions:
+      mentions !== undefined
+        ? mentions
+        : user.emailPreferences?.mentions ?? true,
+    announcements:
+      announcements !== undefined
+        ? announcements
+        : user.emailPreferences?.announcements ?? true,
+    welcomeEmails:
+      welcomeEmails !== undefined
+        ? welcomeEmails
+        : user.emailPreferences?.welcomeEmails ?? true,
+    passwordReset:
+      passwordReset !== undefined
+        ? passwordReset
+        : user.emailPreferences?.passwordReset ?? true,
   };
 
   user.emailPreferences = updatedPreferences;
@@ -793,16 +917,18 @@ export const updateEmailPreferences = asyncHandler(async (req, res) => {
  *   "returns": "Current user's email preferences object"
  * }
  */
-export const getMyEmailPreferences = asyncHandler(async (req, res) => {
+export const getMyEmailPreferences = asyncHandler(async (req, res, next) => {
   const userId = req.user._id;
 
   const user = await User.findOne({
     _id: userId,
     isDeleted: false,
-  }).select('emailPreferences firstName lastName email');
+  }).select("emailPreferences firstName lastName email");
 
   if (!user) {
-    throw new CustomError("User not found", 404, "NOT_FOUND_ERROR");
+    throw CustomError.notFound("User not found", {
+      userId,
+    });
   }
 
   res.status(200).json({
@@ -834,7 +960,7 @@ export const getMyEmailPreferences = asyncHandler(async (req, res) => {
  *   "returns": "Updated email preferences object"
  * }
  */
-export const updateMyEmailPreferences = asyncHandler(async (req, res) => {
+export const updateMyEmailPreferences = asyncHandler(async (req, res, next) => {
   const userId = req.user._id;
   const {
     enabled,
@@ -852,18 +978,39 @@ export const updateMyEmailPreferences = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new CustomError("User not found", 404, "NOT_FOUND_ERROR");
+    throw CustomError.notFound("User not found", {
+      userId,
+    });
   }
 
   // Update email preferences
   const updatedPreferences = {
-    enabled: enabled !== undefined ? enabled : user.emailPreferences?.enabled ?? true,
-    taskNotifications: taskNotifications !== undefined ? taskNotifications : user.emailPreferences?.taskNotifications ?? true,
-    taskReminders: taskReminders !== undefined ? taskReminders : user.emailPreferences?.taskReminders ?? true,
-    mentions: mentions !== undefined ? mentions : user.emailPreferences?.mentions ?? true,
-    announcements: announcements !== undefined ? announcements : user.emailPreferences?.announcements ?? true,
-    welcomeEmails: welcomeEmails !== undefined ? welcomeEmails : user.emailPreferences?.welcomeEmails ?? true,
-    passwordReset: passwordReset !== undefined ? passwordReset : user.emailPreferences?.passwordReset ?? true,
+    enabled:
+      enabled !== undefined ? enabled : user.emailPreferences?.enabled ?? true,
+    taskNotifications:
+      taskNotifications !== undefined
+        ? taskNotifications
+        : user.emailPreferences?.taskNotifications ?? true,
+    taskReminders:
+      taskReminders !== undefined
+        ? taskReminders
+        : user.emailPreferences?.taskReminders ?? true,
+    mentions:
+      mentions !== undefined
+        ? mentions
+        : user.emailPreferences?.mentions ?? true,
+    announcements:
+      announcements !== undefined
+        ? announcements
+        : user.emailPreferences?.announcements ?? true,
+    welcomeEmails:
+      welcomeEmails !== undefined
+        ? welcomeEmails
+        : user.emailPreferences?.welcomeEmails ?? true,
+    passwordReset:
+      passwordReset !== undefined
+        ? passwordReset
+        : user.emailPreferences?.passwordReset ?? true,
   };
 
   user.emailPreferences = updatedPreferences;
@@ -896,7 +1043,7 @@ export const updateMyEmailPreferences = asyncHandler(async (req, res) => {
  *   "returns": "Announcement notification object"
  * }
  */
-export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
+export const sendBulkAnnouncement = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const callerId = req.user._id;
   const callerDeptId = req.user.department._id;
@@ -910,10 +1057,12 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
 
   // Only HODs can send announcements
   if (!HEAD_OF_DEPARTMENT_ROLES.includes(req.user.role)) {
-    throw new CustomError(
+    throw CustomError.authorization(
       "Only SuperAdmin and Admin users can send announcements",
-      403,
-      "AUTHORIZATION_ERROR"
+      {
+        userRole: req.user.role,
+        requiredRoles: HEAD_OF_DEPARTMENT_ROLES,
+      }
     );
   }
 
@@ -924,13 +1073,15 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
     let recipients = [];
     let targetDepartment = callerDeptId;
 
-    if (targetType === 'organization') {
+    if (targetType === "organization") {
       // SuperAdmin can send to entire organization
-      if (req.user.role !== 'SuperAdmin') {
-        throw new CustomError(
+      if (req.user.role !== "SuperAdmin") {
+        throw CustomError.authorization(
           "Only SuperAdmin can send organization-wide announcements",
-          403,
-          "AUTHORIZATION_ERROR"
+          {
+            userRole: req.user.role,
+            requiredRole: "SuperAdmin",
+          }
         );
       }
 
@@ -939,8 +1090,7 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
         isDeleted: false,
         _id: { $ne: callerId },
       }).session(session);
-
-    } else if (targetType === 'department') {
+    } else if (targetType === "department") {
       const deptId = targetDepartmentId || callerDeptId;
 
       // Verify department exists and user has access
@@ -951,15 +1101,24 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
       }).session(session);
 
       if (!department) {
-        throw new CustomError("Department not found", 404, "NOT_FOUND_ERROR");
+        throw CustomError.notFound("Department not found", {
+          departmentId: deptId,
+          organizationId: orgId,
+        });
       }
 
       // Admin can only send to their own department, SuperAdmin can send to any department
-      if (req.user.role === 'Admin' && String(deptId) !== String(callerDeptId)) {
-        throw new CustomError(
+      if (
+        req.user.role === "Admin" &&
+        String(deptId) !== String(callerDeptId)
+      ) {
+        throw CustomError.authorization(
           "Admin users can only send announcements to their own department",
-          403,
-          "AUTHORIZATION_ERROR"
+          {
+            userRole: req.user.role,
+            userDepartmentId: callerDeptId,
+            targetDepartmentId: deptId,
+          }
         );
       }
 
@@ -972,26 +1131,28 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
 
       targetDepartment = deptId;
     } else {
-      throw new CustomError(
+      throw CustomError.validation(
         "Invalid targetType. Must be 'organization' or 'department'",
-        400,
-        "VALIDATION_ERROR"
+        {
+          targetType,
+          validValues: ["organization", "department"],
+        }
       );
     }
 
     if (recipients.length === 0) {
-      throw new CustomError(
-        "No recipients found for announcement",
-        400,
-        "VALIDATION_ERROR"
-      );
+      throw CustomError.validation("No recipients found for announcement", {
+        targetType,
+        targetDepartmentId:
+          targetType === "department" ? targetDepartment : null,
+      });
     }
 
-    const recipientIds = recipients.map(user => user._id);
+    const recipientIds = recipients.map((user) => user._id);
 
     // Create notification with email integration
     const notification = await createNotification(session, {
-      type: 'Announcement',
+      type: "Announcement",
       title,
       message,
       recipients: recipientIds,
@@ -1024,13 +1185,12 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res) => {
         notificationId: notification._id,
         recipientCount: recipients.length,
         targetType,
-        targetDepartment: targetType === 'department' ? targetDepartment : null,
+        targetDepartment: targetType === "department" ? targetDepartment : null,
       },
     });
-
   } catch (error) {
     await session.abortTransaction();
-    throw error;
+    next(error);
   } finally {
     session.endSession();
   }

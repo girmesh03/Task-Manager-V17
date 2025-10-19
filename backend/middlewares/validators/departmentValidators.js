@@ -54,6 +54,12 @@ export const validateCreateDepartment = [
     .withMessage(
       `Description cannot exceed ${MAX_DEPT_DESCRIPTION_LENGTH} characters`
     ),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;
@@ -214,6 +220,12 @@ export const validateUpdateDepartment = [
     .isLength({ min: 1, max: MAX_DEPT_DESCRIPTION_LENGTH })
     .withMessage(
       `Description cannot exceed ${MAX_DEPT_DESCRIPTION_LENGTH} characters`
+    ),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
     ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};

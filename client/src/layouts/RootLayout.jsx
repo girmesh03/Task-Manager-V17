@@ -9,7 +9,7 @@ const RootLayout = () => {
   const theme = useTheme();
 
   return (
-    <Container maxWidth="lg" disableGutters>
+    <Container maxWidth="xl" disableGutters>
       <Outlet />
       <ToastContainer
         position="bottom-right"

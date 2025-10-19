@@ -1,6 +1,7 @@
 // backend/controllers/notificationControllers.js
 import mongoose from "mongoose";
 import asyncHandler from "express-async-handler";
+import CustomError from "../errorHandler/CustomError.js";
 import { Notification } from "../models/index.js";
 
 /**
@@ -12,7 +13,7 @@ import { Notification } from "../models/index.js";
  *   "returns": "Notifications array with pagination metadata"
  * }
  */
-export const getAllNotifications = asyncHandler(async (req, res) => {
+export const getAllNotifications = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const userId = req.user._id;
   const {
@@ -41,6 +42,39 @@ export const getAllNotifications = asyncHandler(async (req, res) => {
     sort: { [sortBy]: sortOrder === "asc" || sortOrder === "1" ? 1 : -1 },
     select:
       "_id type title message entity entityModel recipients readBy organization department createdBy sentAt isDeleted",
+    populate: [
+      {
+        path: "recipients",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+      },
+      {
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: {
+          path: "department",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      },
+      {
+        path: "entity",
+        match: { isDeleted: false },
+      },
+      {
+        path: "organization",
+        match: { isDeleted: false },
+        select: "_id name",
+      },
+      {
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name",
+      },
+    ],
     lean: true,
   };
 
@@ -49,7 +83,7 @@ export const getAllNotifications = asyncHandler(async (req, res) => {
 
   const result = await query.paginate(filter, options);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Notifications fetched successfully",
     pagination: {
@@ -85,7 +119,10 @@ export const markNotificationRead = asyncHandler(async (req, res, next) => {
       recipients: userId,
     }).session(session);
     if (!notif) {
-      throw new Error("Notification not found");
+      throw CustomError.notFound("Notification not found", {
+        notificationId,
+        userId,
+      });
     }
 
     const alreadyRead = (notif.readBy || []).some(
@@ -99,12 +136,42 @@ export const markNotificationRead = asyncHandler(async (req, res, next) => {
       );
     }
 
-    const updated = await Notification.findById(notificationId).session(
-      session
-    );
+    const updated = await Notification.findById(notificationId)
+      .populate({
+        path: "recipients",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+      })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: {
+          path: "department",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      })
+      .populate({
+        path: "entity",
+        match: { isDeleted: false },
+      })
+      .populate({
+        path: "organization",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .populate({
+        path: "department",
+        match: { isDeleted: false },
+        select: "_id name",
+      })
+      .session(session);
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Notification marked as read",
       data: updated,
@@ -126,7 +193,7 @@ export const markNotificationRead = asyncHandler(async (req, res, next) => {
  *   "returns": "Count object with unread notification total"
  * }
  */
-export const getUnreadCount = asyncHandler(async (req, res) => {
+export const getUnreadCount = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const userId = req.user._id;
   const { type } = req.validated.query;
@@ -141,7 +208,7 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
 
   const count = await Notification.countDocuments(filter);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Unread notification count fetched successfully",
     data: { count },

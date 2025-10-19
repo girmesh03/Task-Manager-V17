@@ -1,4 +1,4 @@
-// backend/middlewares/validation.js
+// backend/middlewares/validators/validation.js
 import { validationResult } from "express-validator";
 import CustomError from "../../errorHandler/CustomError.js";
 

@@ -264,6 +264,12 @@ export const validateUpdateOrganization = [
     .isString()
     .withMessage("Cloudinary publicId must be a string")
     .trim(),
+  body("isPlatformOrg")
+    .not()
+    .exists()
+    .withMessage(
+      "isPlatformOrg cannot be manually set. It is automatically determined by the system"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;

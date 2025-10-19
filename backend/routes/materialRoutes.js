@@ -26,14 +26,14 @@ router.use(verifyJWT);
 /**
  * @json {
  *   "method": "POST",
- *   "path": "/materials",
- *   "description": "Create a new material within the organization",
- *   "validators": ["validateCreateMaterial"],
- *   "controller": "createMaterial"
+ *   "path": "/api/materials",
+ *   "middleware": ["verifyJWT", "authorize('Material', 'create')", "validateCreateMaterial"],
+ *   "controller": "createMaterial",
+ *   "description": "Create a new material within the organization"
  * }
  */
 router.post(
-  "/materials",
+  "/",
   authorize("Material", "create"),
   validateCreateMaterial,
   createMaterial
@@ -42,14 +42,14 @@ router.post(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/materials",
- *   "description": "List materials based on authorization scope",
- *   "validators": ["validateGetAllMaterials"],
- *   "controller": "getAllMaterials"
+ *   "path": "/api/materials",
+ *   "middleware": ["verifyJWT", "authorize('Material', 'read')", "validateGetAllMaterials"],
+ *   "controller": "getAllMaterials",
+ *   "description": "List materials based on authorization scope"
  * }
  */
 router.get(
-  "/materials",
+  "/",
   authorize("Material", "read"),
   validateGetAllMaterials,
   getAllMaterials
@@ -58,14 +58,14 @@ router.get(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/materials/:materialId",
- *   "description": "Get single material by ID with complete details",
- *   "validators": ["validateGetMaterial"],
- *   "controller": "getMaterial"
+ *   "path": "/api/materials/:materialId",
+ *   "middleware": ["verifyJWT", "authorize('Material', 'read')", "validateGetMaterial"],
+ *   "controller": "getMaterial",
+ *   "description": "Get single material by ID with complete details"
  * }
  */
 router.get(
-  "/materials/:materialId",
+  "/:materialId",
   authorize("Material", "read"),
   validateGetMaterial,
   getMaterial
@@ -74,14 +74,14 @@ router.get(
 /**
  * @json {
  *   "method": "PUT",
- *   "path": "/materials/:materialId",
- *   "description": "Update material details",
- *   "validators": ["validateUpdateMaterial"],
- *   "controller": "updateMaterial"
+ *   "path": "/api/materials/:materialId",
+ *   "middleware": ["verifyJWT", "authorize('Material', 'update')", "validateUpdateMaterial"],
+ *   "controller": "updateMaterial",
+ *   "description": "Update material details"
  * }
  */
 router.put(
-  "/materials/:materialId",
+  "/:materialId",
   authorize("Material", "update"),
   validateUpdateMaterial,
   updateMaterial
@@ -90,14 +90,14 @@ router.put(
 /**
  * @json {
  *   "method": "DELETE",
- *   "path": "/materials/:materialId",
- *   "description": "Soft delete a material with unlinking from all tasks and activities",
- *   "validators": ["validateDeleteMaterial"],
- *   "controller": "deleteMaterial"
+ *   "path": "/api/materials/:materialId",
+ *   "middleware": ["verifyJWT", "authorize('Material', 'delete')", "validateDeleteMaterial"],
+ *   "controller": "deleteMaterial",
+ *   "description": "Soft delete a material with unlinking from all tasks and activities"
  * }
  */
 router.delete(
-  "/materials/:materialId",
+  "/:materialId",
   authorize("Material", "delete"),
   validateDeleteMaterial,
   deleteMaterial
@@ -105,15 +105,15 @@ router.delete(
 
 /**
  * @json {
- *   "method": "POST",
- *   "path": "/materials/:materialId/restore",
- *   "description": "Restore a soft-deleted material with relinking to all tasks and activities",
- *   "validators": ["validateRestoreMaterial"],
- *   "controller": "restoreMaterial"
+ *   "method": "PATCH",
+ *   "path": "/api/materials/:materialId/restore",
+ *   "middleware": ["verifyJWT", "authorize('Material', 'update')", "validateRestoreMaterial"],
+ *   "controller": "restoreMaterial",
+ *   "description": "Restore a soft-deleted material with relinking to all tasks and activities"
  * }
  */
-router.post(
-  "/materials/:materialId/restore",
+router.patch(
+  "/:materialId/restore",
   authorize("Material", "update"),
   validateRestoreMaterial,
   restoreMaterial

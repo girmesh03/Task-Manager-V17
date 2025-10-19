@@ -4,8 +4,12 @@ import { handleValidationErrors } from "./validation.js";
 import { VALID_INDUSTRIES } from "../../utils/constants.js";
 
 /**
- * Validate user login
- * Checks if the email and password fields are present and valid.
+ * @json {
+ *   "route": "POST /api/auth/login",
+ *   "purpose": "Validate user login credentials",
+ *   "validates": ["email", "password"],
+ *   "rules": ["Email format validation", "Password minimum length 8 characters"]
+ * }
  */
 export const validateLogin = [
   body("email")
@@ -40,8 +44,12 @@ export const validateLogin = [
 ];
 
 /**
- * Validate organization registration
- * Checks if the required fields are present and valid.
+ * @json {
+ *   "route": "POST /api/auth/register",
+ *   "purpose": "Validate organization registration with department and super admin user",
+ *   "validates": ["organizationData", "userData"],
+ *   "rules": ["Unique organization name/email/phone", "Valid industry", "Department name required", "SuperAdmin user creation"]
+ * }
  */
 export const validateOrgRegistration = [
   body("organizationData.name")
@@ -132,10 +140,31 @@ export const validateOrgRegistration = [
     .isIn(VALID_INDUSTRIES)
     .withMessage("Invalid industry"),
 
+  body("organizationData.description")
+    .exists({ checkFalsy: true })
+    .withMessage("Organization description is required")
+    .bail()
+    .isString()
+    .withMessage("Description must be a string")
+    .bail()
+    .trim()
+    .isLength({ min: 2, max: 500 })
+    .withMessage("Description must be 2-500 characters")
+    .bail()
+    .matches(/^[a-zA-Z0-9\s.,!?()-]+$/)
+    .withMessage("Description contains invalid characters"),
+
   body("organizationData.logoUrl")
     .optional()
     .isURL()
     .withMessage("logoUrl must be a valid URL"),
+
+  body("organizationData.isPlatformOrg")
+    .not()
+    .exists()
+    .withMessage(
+      "isPlatformOrg cannot be manually set. It is automatically determined by the system"
+    ),
 
   body("userData.firstName")
     .exists({ checkFalsy: true })
@@ -236,6 +265,7 @@ export const validateOrgRegistration = [
         size: req.body.organizationData.size,
         industry: req.body.organizationData.industry,
         logoUrl: req.body.organizationData.logoUrl,
+        description: req.body.organizationData.description,
       },
       userData: {
         firstName: req.body.userData.firstName,
@@ -255,8 +285,12 @@ export const validateOrgRegistration = [
 ];
 
 /**
- * Validate forgot password request
- * Checks if the email field is present and valid.
+ * @json {
+ *   "route": "POST /api/auth/forgot-password",
+ *   "purpose": "Validate forgot password request",
+ *   "validates": ["email"],
+ *   "rules": ["Email format validation", "Email normalization"]
+ * }
  */
 export const validateForgotPassword = [
   body("email")
@@ -282,8 +316,12 @@ export const validateForgotPassword = [
 ];
 
 /**
- * Validate password reset
- * Checks if the token and new password fields are present and valid.
+ * @json {
+ *   "route": "POST /api/auth/reset-password",
+ *   "purpose": "Validate password reset with token",
+ *   "validates": ["token", "newPassword", "confirmPassword"],
+ *   "rules": ["Token format validation", "Password strength requirements", "Password confirmation match"]
+ * }
  */
 export const validateResetPassword = [
   body("token")
@@ -303,7 +341,9 @@ export const validateResetPassword = [
     .withMessage("Password must be at least 8 characters")
     .bail()
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage("Password must contain at least one lowercase letter, one uppercase letter, and one number"),
+    .withMessage(
+      "Password must contain at least one lowercase letter, one uppercase letter, and one number"
+    ),
 
   body("confirmPassword")
     .exists({ checkFalsy: true })

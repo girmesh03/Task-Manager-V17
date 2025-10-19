@@ -412,5 +412,51 @@
         "ops": []
       }
     }
+  },
+  "Attachment": {
+    "SuperAdmin": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "Admin": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "Manager": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "User": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    }
   }
 }

@@ -64,6 +64,12 @@ export const validateCreateMaterial = [
     .bail()
     .isIn(MATERIAL_CATEGORIES)
     .withMessage(`Category must be one of: ${MATERIAL_CATEGORIES.join(", ")}`),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;
@@ -291,6 +297,12 @@ export const validateUpdateMaterial = [
     .optional({ nullable: true })
     .isIn(MATERIAL_CATEGORIES)
     .withMessage(`Category must be one of: ${MATERIAL_CATEGORIES.join(", ")}`),
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const b = req.body;

@@ -5,5 +5,4 @@ export { default as navigationCustomizations } from "./navigation";
 export { default as surfacesCustomizations } from "./surfaces";
 export { default as dataGridCustomizations } from "./dataGrid";
 export { default as datePickersCustomizations } from "./datePickers";
-export { default as treeViewCustomizations } from "./treeView";
 export { default as chartsCustomizations } from "./charts";

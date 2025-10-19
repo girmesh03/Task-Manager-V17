@@ -29,7 +29,7 @@ import {
  *   "returns": "Organizations array with basic details, total count, and pagination info"
  * }
  */
-export const getAllOrganizations = asyncHandler(async (req, res) => {
+export const getAllOrganizations = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const isPlatformUser =
     String(orgId) === String(process.env.PLATFORM_ORGANIZATION_ID);
@@ -76,7 +76,7 @@ export const getAllOrganizations = asyncHandler(async (req, res) => {
 
   const result = await query.paginate(filter, options);
 
-  return res.status(200).json({
+  res.status(200).json({
     success: true,
     message: "Organizations fetched successfully",
     pagination: {
@@ -100,14 +100,35 @@ export const getAllOrganizations = asyncHandler(async (req, res) => {
  *   "returns": "Organization object with stats and optional related collections"
  * }
  */
-export const getOrganizationDashboard = asyncHandler(async (req, res) => {
+export const getOrganizationDashboard = asyncHandler(async (req, res, next) => {
   const { organizationId } = req.validated.params;
 
   const organization = await Organization.findOne({
     _id: organizationId,
-  }).lean();
+  })
+    .populate({
+      path: "createdBy",
+      match: { isDeleted: false },
+      select:
+        "_id firstName lastName email role position department organization profilePicture",
+      populate: [
+        {
+          path: "department",
+          match: { isDeleted: false },
+          select: "_id name description",
+        },
+        {
+          path: "organization",
+          match: { isDeleted: false },
+          select: "_id name",
+        },
+      ],
+    })
+    .lean();
   if (!organization || organization.isDeleted) {
-    throw new CustomError("Organization not found", 404, "ORG_NOT_FOUND");
+    throw CustomError.notFound("Organization not found", {
+      organizationId,
+    });
   }
 });
 
@@ -145,9 +166,26 @@ export const updateOrganization = asyncHandler(async (req, res, next) => {
       { session }
     );
 
-    const updated = await Organization.findOne({ _id: organizationId }).session(
-      session
-    );
+    const updated = await Organization.findOne({ _id: organizationId })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: [
+          {
+            path: "department",
+            match: { isDeleted: false },
+            select: "_id name description",
+          },
+          {
+            path: "organization",
+            match: { isDeleted: false },
+            select: "_id name",
+          },
+        ],
+      })
+      .session(session);
 
     const hodRecipients = await User.find({
       organization: organizationId,
@@ -183,7 +221,7 @@ export const updateOrganization = asyncHandler(async (req, res, next) => {
     });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Organization updated successfully",
       data: updated,
@@ -247,7 +285,7 @@ export const deleteOrganization = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "organization:deleted", { organizationId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Organization soft-deleted successfully",
       data: { organizationId, deletedAt: new Date().toISOString() },
@@ -280,7 +318,26 @@ export const restoreOrganization = asyncHandler(async (req, res, next) => {
 
     const restored = await Organization.findOne({
       _id: organizationId,
-    }).session(session);
+    })
+      .populate({
+        path: "createdBy",
+        match: { isDeleted: false },
+        select:
+          "_id firstName lastName email role position department organization profilePicture",
+        populate: [
+          {
+            path: "department",
+            match: { isDeleted: false },
+            select: "_id name description",
+          },
+          {
+            path: "organization",
+            match: { isDeleted: false },
+            select: "_id name",
+          },
+        ],
+      })
+      .session(session);
 
     const hodRecipients = await User.find({
       organization: organizationId,
@@ -312,7 +369,7 @@ export const restoreOrganization = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "organization:restored", { organizationId });
 
     await session.commitTransaction();
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Organization restored successfully",
       data: restored,

@@ -45,14 +45,9 @@ const ForgotPassword = () => {
 
   // Form for email step
   const {
-    register: registerEmail,
+    control: emailControl,
     handleSubmit: handleSubmitEmail,
-    formState: {
-      errors: emailErrors,
-      isDirty: emailIsDirty,
-      isValid: emailIsValid,
-      isSubmitting,
-    },
+    formState: { isDirty: emailIsDirty, isValid: emailIsValid, isSubmitting },
     setFocus: setEmailFocus,
   } = useForm({
     mode: "onChange",
@@ -61,13 +56,9 @@ const ForgotPassword = () => {
 
   // Form for password reset step
   const {
-    register: registerReset,
+    control: resetControl,
     handleSubmit: handleSubmitReset,
-    formState: {
-      errors: resetErrors,
-      isDirty: resetIsDirty,
-      isValid: resetIsValid,
-    },
+    formState: { isDirty: resetIsDirty, isValid: resetIsValid },
     setFocus: setResetFocus,
     watch,
   } = useForm({
@@ -267,6 +258,8 @@ const ForgotPassword = () => {
               noValidate
             >
               <MuiTextField
+                name="email"
+                control={emailControl}
                 label="Email Address"
                 type="email"
                 fullWidth
@@ -274,15 +267,13 @@ const ForgotPassword = () => {
                 margin="normal"
                 autoComplete="email"
                 startAdornment={<EmailIcon fontSize="small" color="primary" />}
-                error={!!emailErrors.email}
-                helperText={emailErrors.email?.message}
-                {...registerEmail("email", {
+                rules={{
                   required: "Email is required",
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                     message: "Please enter a valid email address",
                   },
-                })}
+                }}
               />
 
               {/* Error Alert */}
@@ -343,6 +334,8 @@ const ForgotPassword = () => {
             >
               {/* New Password Field */}
               <MuiTextField
+                name="newPassword"
+                control={resetControl}
                 label="New Password"
                 type={showPassword ? "text" : "password"}
                 fullWidth
@@ -366,9 +359,7 @@ const ForgotPassword = () => {
                     )}
                   </IconButton>
                 }
-                error={!!resetErrors.newPassword}
-                helperText={resetErrors.newPassword?.message}
-                {...registerReset("newPassword", {
+                rules={{
                   required: "New password is required",
                   minLength: {
                     value: 8,
@@ -379,11 +370,13 @@ const ForgotPassword = () => {
                     message:
                       "Password must contain at least one lowercase letter, one uppercase letter, and one number",
                   },
-                })}
+                }}
               />
 
               {/* Confirm Password Field */}
               <MuiTextField
+                name="confirmPassword"
+                control={resetControl}
                 label="Confirm New Password"
                 type={showConfirmPassword ? "text" : "password"}
                 fullWidth
@@ -407,13 +400,11 @@ const ForgotPassword = () => {
                     )}
                   </IconButton>
                 }
-                error={!!resetErrors.confirmPassword}
-                helperText={resetErrors.confirmPassword?.message}
-                {...registerReset("confirmPassword", {
+                rules={{
                   required: "Please confirm your password",
                   validate: (value) =>
                     value === newPassword || "Passwords do not match",
-                })}
+                }}
               />
 
               {/* Error Alert */}

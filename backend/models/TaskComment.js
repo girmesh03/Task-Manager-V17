@@ -1,5 +1,6 @@
 // backend/models/TaskComment.js
 import mongoose from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
 import softDeletePlugin from "./plugins/softDelete.js";
 import {
   TASK_COMMENT_PARENT_MODELS,
@@ -97,6 +98,10 @@ const TaskCommentSchema = new mongoose.Schema(
       virtuals: true,
       transform: function (doc, ret) {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -104,6 +109,10 @@ const TaskCommentSchema = new mongoose.Schema(
       virtuals: true,
       transform: function (doc, ret) {
         delete ret.id;
+        delete ret.__v;
+        delete ret.isDeleted;
+        delete ret.deletedAt;
+        delete ret.deletedBy;
         return ret;
       },
     },
@@ -273,6 +282,7 @@ TaskCommentSchema.pre("save", async function (next) {
 
 // Plugins
 softDeletePlugin(TaskCommentSchema);
+TaskCommentSchema.plugin(mongoosePaginate);
 
 // ==================== CASCADE SOFT DELETE ====================
 TaskCommentSchema.statics.softDeleteByIdWithCascade = async function (

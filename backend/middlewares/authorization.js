@@ -14,7 +14,7 @@ export const authorize = (resource, operation) => {
         throw CustomError.authentication("User not authenticated", {
           resource,
           operation,
-          reason: 'No user context found in request'
+          reason: "No user context found in request",
         });
       }
 
@@ -33,7 +33,7 @@ export const authorize = (resource, operation) => {
             operation,
             userRole,
             userId: user._id,
-            organizationId: userOrganization._id
+            organizationId: userOrganization._id,
           }
         );
       }
@@ -93,7 +93,7 @@ export const authorize = (resource, operation) => {
             crossOrgSource,
             userId: user._id,
             organizationId: userOrganization._id,
-            departmentId: user.department?._id
+            departmentId: user.department?._id,
           }
         );
       }
@@ -115,15 +115,12 @@ export const authorize = (resource, operation) => {
       } else {
         console.error("Authorization middleware error:", error);
         return next(
-          CustomError.internal(
-            "Authorization check failed",
-            {
-              resource,
-              operation,
-              originalError: error.message,
-              stack: error.stack
-            }
-          )
+          CustomError.internal("Authorization check failed", {
+            resource,
+            operation,
+            originalError: error.message,
+            stack: error.stack,
+          })
         );
       }
     }
@@ -721,10 +718,36 @@ export const authenticated = (req, res, next) => {
   if (!req.user) {
     return next(
       CustomError.authentication("Authentication required", {
-        reason: 'No authenticated user found in request context'
+        reason: "No authenticated user found in request context",
       })
     );
   }
+  next();
+};
+
+/**
+ * Middleware to require platform user privileges
+ * Checks if the authenticated user belongs to the platform organization
+ */
+export const requirePlatformUser = (req, res, next) => {
+  if (!req.user) {
+    return next(
+      CustomError.authentication("Authentication required", {
+        reason: "No authenticated user found in request context",
+      })
+    );
+  }
+
+  if (!req.user.isPlatformUser) {
+    return next(
+      CustomError.forbidden("This action requires platform user privileges", {
+        userId: req.user._id,
+        organizationId: req.user.organization._id,
+        isPlatformUser: req.user.isPlatformUser,
+      })
+    );
+  }
+
   next();
 };
 
@@ -732,4 +755,5 @@ export default {
   authorize,
   authenticated,
   publicRoute,
+  requirePlatformUser,
 };

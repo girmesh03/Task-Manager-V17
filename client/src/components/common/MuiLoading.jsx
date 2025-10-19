@@ -23,7 +23,7 @@ export const LoadingFallback = ({
         ...sx,
       }}
     >
-      <CircularProgress size={40} thickness={4} />
+      <CircularProgress size={40} thickness={4} disableShrink />
       <Typography variant="body2" color="text.secondary">
         {message}
       </Typography>

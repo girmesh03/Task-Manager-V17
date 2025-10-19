@@ -28,34 +28,70 @@ const router = express.Router();
 // Apply rate limiter to all auth routes
 router.use(rateLimiter);
 
-// @route   POST /api/auth/register
-// @desc    Register a new organization, department and tenant super admin user
-// @access  Public
+/**
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/register",
+ *   "middleware": ["rateLimiter", "validateOrgRegistration"],
+ *   "controller": "registerOrganization",
+ *   "description": "Register a new organization, department and tenant super admin user"
+ * }
+ */
 router.route("/register").post(validateOrgRegistration, registerOrganization);
 
-// @route   POST /api/auth/login
-// @desc    Login user
-// @access  Public
+/**
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/login",
+ *   "middleware": ["rateLimiter", "validateLogin"],
+ *   "controller": "loginUser",
+ *   "description": "Authenticate user and set access/refresh tokens via cookies"
+ * }
+ */
 router.route("/login").post(validateLogin, loginUser);
 
-// @route   DELETE /api/auth/logout
-// @desc    Logout user
-// @access  Private
+/**
+ * @json {
+ *   "method": "DELETE",
+ *   "path": "/api/auth/logout",
+ *   "middleware": ["rateLimiter", "verifyJWT"],
+ *   "controller": "logoutUser",
+ *   "description": "Logout user and clear authentication cookies"
+ * }
+ */
 router.route("/logout").delete(verifyJWT, logoutUser);
 
-// @route   GET /api/auth/refresh-token
-// @desc    Get new access token using refresh token
-// @access  Private - Requires valid refresh token
+/**
+ * @json {
+ *   "method": "GET",
+ *   "path": "/api/auth/refresh-token",
+ *   "middleware": ["rateLimiter", "verifyRefreshToken"],
+ *   "controller": "getRefreshToken",
+ *   "description": "Get new access token using refresh token"
+ * }
+ */
 router.route("/refresh-token").get(verifyRefreshToken, getRefreshToken);
 
-// @route   POST /api/auth/forgot-password
-// @desc    Request password reset
-// @access  Public
+/**
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/forgot-password",
+ *   "middleware": ["rateLimiter", "validateForgotPassword"],
+ *   "controller": "forgotPassword",
+ *   "description": "Request password reset and send reset email"
+ * }
+ */
 router.route("/forgot-password").post(validateForgotPassword, forgotPassword);
 
-// @route   POST /api/auth/reset-password
-// @desc    Reset password with token
-// @access  Public
+/**
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/reset-password",
+ *   "middleware": ["rateLimiter", "validateResetPassword"],
+ *   "controller": "resetPassword",
+ *   "description": "Reset password using valid reset token"
+ * }
+ */
 router.route("/reset-password").post(validateResetPassword, resetPassword);
 
 export default router;

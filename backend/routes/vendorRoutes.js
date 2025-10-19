@@ -26,14 +26,14 @@ router.use(verifyJWT);
 /**
  * @json {
  *   "method": "POST",
- *   "path": "/vendors",
- *   "description": "Create a new vendor for the organization",
- *   "validators": ["validateCreateVendor"],
- *   "controller": "createVendor"
+ *   "path": "/api/vendors",
+ *   "middleware": ["verifyJWT", "authorize('Vendor', 'create')", "validateCreateVendor"],
+ *   "controller": "createVendor",
+ *   "description": "Create a new vendor for the organization"
  * }
  */
 router.post(
-  "/vendors",
+  "/",
   authorize("Vendor", "create"),
   validateCreateVendor,
   createVendor
@@ -42,14 +42,14 @@ router.post(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/vendors",
- *   "description": "List vendors in the organization with pagination and search",
- *   "validators": ["validateGetAllVendors"],
- *   "controller": "getAllVendors"
+ *   "path": "/api/vendors",
+ *   "middleware": ["verifyJWT", "authorize('Vendor', 'read')", "validateGetAllVendors"],
+ *   "controller": "getAllVendors",
+ *   "description": "List vendors in the organization with pagination and search"
  * }
  */
 router.get(
-  "/vendors",
+  "/",
   authorize("Vendor", "read"),
   validateGetAllVendors,
   getAllVendors
@@ -58,14 +58,14 @@ router.get(
 /**
  * @json {
  *   "method": "GET",
- *   "path": "/vendors/:vendorId",
- *   "description": "Get single vendor by ID with complete details",
- *   "validators": ["validateGetVendor"],
- *   "controller": "getVendor"
+ *   "path": "/api/vendors/:vendorId",
+ *   "middleware": ["verifyJWT", "authorize('Vendor', 'read')", "validateGetVendor"],
+ *   "controller": "getVendor",
+ *   "description": "Get single vendor by ID with complete details"
  * }
  */
 router.get(
-  "/vendors/:vendorId",
+  "/:vendorId",
   authorize("Vendor", "read"),
   validateGetVendor,
   getVendor
@@ -74,14 +74,14 @@ router.get(
 /**
  * @json {
  *   "method": "PUT",
- *   "path": "/vendors/:vendorId",
- *   "description": "Update vendor details",
- *   "validators": ["validateUpdateVendor"],
- *   "controller": "updateVendor"
+ *   "path": "/api/vendors/:vendorId",
+ *   "middleware": ["verifyJWT", "authorize('Vendor', 'update')", "validateUpdateVendor"],
+ *   "controller": "updateVendor",
+ *   "description": "Update vendor details"
  * }
  */
 router.put(
-  "/vendors/:vendorId",
+  "/:vendorId",
   authorize("Vendor", "update"),
   validateUpdateVendor,
   updateVendor
@@ -90,14 +90,14 @@ router.put(
 /**
  * @json {
  *   "method": "DELETE",
- *   "path": "/vendors/:vendorId",
- *   "description": "Soft delete a vendor with reassignment option for active project tasks",
- *   "validators": ["validateDeleteVendor"],
- *   "controller": "deleteVendor"
+ *   "path": "/api/vendors/:vendorId",
+ *   "middleware": ["verifyJWT", "authorize('Vendor', 'delete')", "validateDeleteVendor"],
+ *   "controller": "deleteVendor",
+ *   "description": "Soft delete a vendor with reassignment option for active project tasks"
  * }
  */
 router.delete(
-  "/vendors/:vendorId",
+  "/:vendorId",
   authorize("Vendor", "delete"),
   validateDeleteVendor,
   deleteVendor
@@ -105,15 +105,15 @@ router.delete(
 
 /**
  * @json {
- *   "method": "POST",
- *   "path": "/vendors/:vendorId/restore",
- *   "description": "Restore a soft-deleted vendor",
- *   "validators": ["validateRestoreVendor"],
- *   "controller": "restoreVendor"
+ *   "method": "PATCH",
+ *   "path": "/api/vendors/:vendorId/restore",
+ *   "middleware": ["verifyJWT", "authorize('Vendor', 'update')", "validateRestoreVendor"],
+ *   "controller": "restoreVendor",
+ *   "description": "Restore a soft-deleted vendor"
  * }
  */
-router.post(
-  "/vendors/:vendorId/restore",
+router.patch(
+  "/:vendorId/restore",
   authorize("Vendor", "update"),
   validateRestoreVendor,
   restoreVendor

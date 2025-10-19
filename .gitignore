@@ -1,3 +1,9 @@
+# .kiro
+.kiro/
+
+# kiro verification
+verification/
+
 # docs
 docs/
 

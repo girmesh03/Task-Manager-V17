@@ -26,6 +26,7 @@ import {
   TASK_COMMENT_PARENT_MODELS,
   TASK_ACTIVITY_PARENT_MODELS,
   SUPPORTED_CURRENCIES,
+  MATERIAL_CATEGORIES,
   MAX_ATTACHMENTS_PER_ENTITY,
   MAX_WATCHERS_PER_TASK,
   MAX_ASSIGNEES_PER_TASK,
@@ -42,6 +43,7 @@ import {
   MAX_AUDIO_SIZE,
   MAX_OTHER_SIZE,
   HEAD_OF_DEPARTMENT_ROLES,
+  MAX_LIST_ITEM_LIMIT,
 } from "../../utils/constants.js";
 
 /**
@@ -482,7 +484,7 @@ const routineTaskValidators = [
       return true;
     }),
 
-  body("materialIds")
+  body("materials")
     .if(body("taskType").equals("RoutineTask"))
     .optional({ nullable: true })
     .isArray()
@@ -496,7 +498,7 @@ const routineTaskValidators = [
       }
       return true;
     }),
-  body("materialIds.*.material")
+  body("materials.*.materialId")
     .if(body("taskType").equals("RoutineTask"))
     .exists({ checkFalsy: true })
     .withMessage("Material ID is required")
@@ -506,38 +508,30 @@ const routineTaskValidators = [
     .bail()
     .custom(async (materialId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const mat = await Material.findOne({
         _id: materialId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!mat) throw new Error("Material not found in your organization");
       return true;
     }),
-  body("materialIds.*.quantity")
+  body("materials.*.quantity")
     .if(body("taskType").equals("RoutineTask"))
     .exists({ checkFalsy: true })
     .withMessage("Quantity is required")
     .bail()
     .isFloat({ min: 0 })
     .withMessage("Quantity must be a non-negative number"),
-  body("materialIds.*.unitPrice")
-    .if(body("taskType").equals("RoutineTask"))
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Unit price must be a non-negative number"),
-  body("materialIds.*.totalCost")
-    .if(body("taskType").equals("RoutineTask"))
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Total cost must be a non-negative number"),
 ];
 
 /**
  * @json {
- *   "route": "POST /tasks",
+ *   "route": "POST /api/tasks",
  *   "purpose": "Create a new task of any type (RoutineTask, AssignedTask, ProjectTask) based on taskType field.",
- *   "validates": ["taskType","title","description","status","priority","attachments","watcherIds","tags","startDate","dueDate","assigneeIds","vendorId","estimatedCost","actualCost","currency","date","materialIds"],
+ *   "validates": ["taskType","title","description","status","priority","attachments","watcherIds","tags","startDate","dueDate","assigneeIds","vendorId","estimatedCost","actualCost","currency","date","materials"],
  *   "rules": ["Tenant-scoped uniqueness and existence checks", "Field-specific constraints per constants.js", "Date constraints via helpers", "Attachment Cloudinary constraints"]
  * }
  */
@@ -550,6 +544,12 @@ export const validateCreateTask = [
   ...projectTaskValidators,
   ...routineTaskValidators,
 
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const {
@@ -569,7 +569,7 @@ export const validateCreateTask = [
       actualCost,
       currency,
       date,
-      materialIds,
+      materials,
     } = req.body;
 
     req.validated.body = {
@@ -592,16 +592,12 @@ export const validateCreateTask = [
       actualCost: actualCost !== undefined ? Number(actualCost) : undefined,
       currency,
       date: date ? new Date(date) : undefined,
-      materialIds:
-        Array.isArray(materialIds) && materialIds.length > 0
-          ? materialIds.map((m) => ({
-              material: m.material?.toString(),
+      materials:
+        Array.isArray(materials) && materials.length > 0
+          ? materials.map((m) => ({
+              materialId: m.materialId?.toString(),
               quantity:
                 m.quantity !== undefined ? Number(m.quantity) : undefined,
-              unitPrice:
-                m.unitPrice !== undefined ? Number(m.unitPrice) : undefined,
-              totalCost:
-                m.totalCost !== undefined ? Number(m.totalCost) : undefined,
             }))
           : undefined,
     };
@@ -613,7 +609,7 @@ export const validateCreateTask = [
 
 /**
  * @json {
- *   "route": "GET /tasks",
+ *   "route": "GET /api/tasks",
  *   "purpose": "List all tasks across all types with filtering and pagination.",
  *   "validates": ["page","limit","taskType","status","priority","departmentId","assigneeId","vendorId","dueDateFrom","dueDateTo","dateFrom","dateTo","search","sortBy","sortOrder","deleted","createdBy","watcherId","tags"],
  *   "rules": ["Tenant-scoped", "Pagination", "Filter validation", "Sort validation"]
@@ -772,7 +768,7 @@ export const validateGetAllTasks = [
 
 /**
  * @json {
- *   "route": "GET /tasks/:taskId",
+ *   "route": "GET /api/tasks/:taskId",
  *   "purpose": "Get single task by ID with complete details including all activities, comments, attachments, assignees, vendor information, materials, and cost history.",
  *   "validates": ["taskId"],
  *   "rules": ["Tenant-scoped existence validation"]
@@ -788,9 +784,11 @@ export const validateGetTask = [
     .bail()
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const task = await BaseTask.findOne({
         _id: taskId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!task) throw new Error("Task not found in your organization");
@@ -801,9 +799,9 @@ export const validateGetTask = [
 
 /**
  * @json {
- *   "route": "PUT /tasks/:taskId",
+ *   "route": "PUT /api/tasks/:taskId",
  *   "purpose": "Update a task of any type.",
- *   "validates": ["taskId","title","description","status","priority","attachments","watcherIds","tags","startDate","dueDate","assigneeIds","vendorId","estimatedCost","actualCost","currency","date","materialIds"],
+ *   "validates": ["taskId","title","description","status","priority","attachments","watcherIds","tags","startDate","dueDate","assigneeIds","vendorId","estimatedCost","actualCost","currency","date","materials"],
  *   "rules": ["Tenant-scoped", "Field-specific per task type", "Attachment constraints"]
  * }
  */
@@ -817,9 +815,11 @@ export const validateUpdateTask = [
     .bail()
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const task = await BaseTask.findOne({
         _id: taskId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!task) throw new Error("Task not found in your organization");
@@ -1079,7 +1079,7 @@ export const validateUpdateTask = [
       }
       return true;
     }),
-  body("materialIds")
+  body("materials")
     .if((value, { req }) => req.foundTaskType === "RoutineTask")
     .optional({ nullable: true })
     .isArray()
@@ -1093,7 +1093,7 @@ export const validateUpdateTask = [
       }
       return true;
     }),
-  body("materialIds.*.material")
+  body("materials.*.materialId")
     .if((value, { req }) => req.foundTaskType === "RoutineTask")
     .optional({ nullable: true })
     .isMongoId()
@@ -1102,30 +1102,28 @@ export const validateUpdateTask = [
     .custom(async (materialId, { req }) => {
       if (!materialId) return true;
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const mat = await Material.findOne({
         _id: materialId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!mat) throw new Error("Material not found in your organization");
       return true;
     }),
-  body("materialIds.*.quantity")
+  body("materials.*.quantity")
     .if((value, { req }) => req.foundTaskType === "RoutineTask")
     .optional({ nullable: true })
     .isFloat({ min: 0 })
     .withMessage("Quantity must be a non-negative number"),
-  body("materialIds.*.unitPrice")
-    .if((value, { req }) => req.foundTaskType === "RoutineTask")
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Unit price must be a non-negative number"),
-  body("materialIds.*.totalCost")
-    .if((value, { req }) => req.foundTaskType === "RoutineTask")
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Total cost must be a non-negative number"),
 
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const {
@@ -1144,7 +1142,7 @@ export const validateUpdateTask = [
       actualCost,
       currency,
       date,
-      materialIds,
+      materials,
     } = req.body;
 
     req.validated.body = {
@@ -1166,16 +1164,12 @@ export const validateUpdateTask = [
       actualCost: actualCost !== undefined ? Number(actualCost) : undefined,
       currency,
       date: date ? new Date(date) : undefined,
-      materialIds:
-        Array.isArray(materialIds) && materialIds.length > 0
-          ? materialIds.map((m) => ({
-              material: m.material?.toString(),
+      materials:
+        Array.isArray(materials) && materials.length > 0
+          ? materials.map((m) => ({
+              materialId: m.materialId?.toString(),
               quantity:
                 m.quantity !== undefined ? Number(m.quantity) : undefined,
-              unitPrice:
-                m.unitPrice !== undefined ? Number(m.unitPrice) : undefined,
-              totalCost:
-                m.totalCost !== undefined ? Number(m.totalCost) : undefined,
             }))
           : undefined,
     };
@@ -1186,7 +1180,7 @@ export const validateUpdateTask = [
 
 /**
  * @json {
- *   "route": "DELETE /tasks/:taskId",
+ *   "route": "DELETE /api/tasks/:taskId",
  *   "purpose": "Soft delete a task with full cascade deletion.",
  *   "validates": ["taskId"],
  *   "rules": ["Tenant-scoped existence validation"]
@@ -1202,9 +1196,11 @@ export const validateDeleteTask = [
     .bail()
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const exists = await BaseTask.findOne({
         _id: taskId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!exists) throw new Error("Task not found in your organization");
@@ -1231,9 +1227,11 @@ export const validateRestoreTask = [
     .bail()
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const task = await BaseTask.findOne({
         _id: taskId,
         organization: orgId,
+        department: deptId,
       }).withDeleted();
       if (!task || task.isDeleted !== true) {
         throw new Error("Soft-deleted task not found in your organization");
@@ -1245,9 +1243,9 @@ export const validateRestoreTask = [
 
 /**
  * @json {
- *   "route": "POST /tasks/:taskId/activities",
+ *   "route": "POST /api/tasks/:taskId/activities",
  *   "purpose": "Create a new activity log for a specific task.",
- *   "validates": ["taskId","activity","attachments","materialIds"],
+ *   "validates": ["taskId","activity","attachments","materials"],
  *   "rules": ["Tenant-scoped existence for task", "Attachment constraints", "Materials validation"]
  * }
  */
@@ -1261,12 +1259,14 @@ export const validateCreateTaskActivity = [
     .bail()
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const task = await BaseTask.findOne({
         _id: taskId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
-      if (!task) throw new Error("Task not found in your organization");
+      if (!task) throw new Error("Task not found in your department");
       if (!TASK_ACTIVITY_PARENT_MODELS.includes(task.taskType)) {
         throw new Error(
           "Activities can only be created for AssignedTask or ProjectTask"
@@ -1289,7 +1289,7 @@ export const validateCreateTaskActivity = [
   validateAttachmentsArray,
   ...validateAttachmentFields,
 
-  body("materialIds")
+  body("materials")
     .optional({ nullable: true })
     .isArray()
     .withMessage("Materials must be an array")
@@ -1300,7 +1300,7 @@ export const validateCreateTaskActivity = [
       }
       return true;
     }),
-  body("materialIds.*.material")
+  body("materials.*.materialId")
     .optional({ nullable: true })
     .isMongoId()
     .withMessage("Material ID must be a valid MongoDB ID")
@@ -1308,43 +1308,63 @@ export const validateCreateTaskActivity = [
     .custom(async (materialId, { req }) => {
       if (!materialId) return true;
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const mat = await Material.findOne({
         _id: materialId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
-      if (!mat) throw new Error("Material not found in your organization");
+      if (!mat) throw new Error("Material not found in your department");
       return true;
     }),
-  body("materialIds.*.quantity")
+  body("materials.*.quantity")
     .optional({ nullable: true })
     .isFloat({ min: 0 })
     .withMessage("Quantity must be a non-negative number"),
-  body("materialIds.*.unitPrice")
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Unit price must be a non-negative number"),
-  body("materialIds.*.totalCost")
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Total cost must be a non-negative number"),
 
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("task")
+    .not()
+    .exists()
+    .withMessage(
+      "task cannot be provided. Parent task is determined from URL parameters"
+    ),
+  body("taskModel")
+    .not()
+    .exists()
+    .withMessage(
+      "taskModel cannot be provided. Parent task model is determined from URL parameters"
+    ),
+  body("parent")
+    .not()
+    .exists()
+    .withMessage(
+      "parent cannot be provided. Parent is determined from URL parameters"
+    ),
+  body("parentId")
+    .not()
+    .exists()
+    .withMessage(
+      "parentId cannot be provided. Parent is determined from URL parameters"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
-    const { activity, attachments, materialIds } = req.body;
+    const { activity, attachments, materials } = req.body;
     req.validated.body = {
       activity: activity?.trim(),
       attachments: attachments || [],
-      materialIds:
-        Array.isArray(materialIds) && materialIds.length > 0
-          ? materialIds.map((m) => ({
-              material: m.material?.toString(),
+      materials:
+        Array.isArray(materials) && materials.length > 0
+          ? materials.map((m) => ({
+              materialId: m.materialId?.toString(),
               quantity:
                 m.quantity !== undefined ? Number(m.quantity) : undefined,
-              unitPrice:
-                m.unitPrice !== undefined ? Number(m.unitPrice) : undefined,
-              totalCost:
-                m.totalCost !== undefined ? Number(m.totalCost) : undefined,
             }))
           : undefined,
     };
@@ -1356,7 +1376,7 @@ export const validateCreateTaskActivity = [
 
 /**
  * @json {
- *   "route": "GET /tasks/:taskId/activities",
+ *   "route": "GET /api/tasks/:taskId/activities",
  *   "purpose": "List all activities for a specific task with pagination.",
  *   "validates": ["taskId","page","limit","sortBy","sortOrder","deleted","createdBy"],
  *   "rules": ["Tenant-scoped", "Pagination", "Sorting"]
@@ -1372,18 +1392,20 @@ export const validateGetAllTaskActivities = [
     .bail()
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const task = await BaseTask.findOne({
         _id: taskId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
-      if (!task) throw new Error("Task not found in your organization");
+      if (!task) throw new Error("Task not found in your department");
       return true;
     }),
   query("page").optional().isInt({ min: 1 }).withMessage("Page must be >= 1"),
   query("limit")
     .optional()
-    .isInt({ min: 1, max: 100 })
+    .isInt({ min: 1, max: MAX_LIST_ITEM_LIMIT })
     .withMessage("Limit must be between 1 and 100"),
   query("sortBy")
     .optional({ nullable: true })
@@ -1437,9 +1459,11 @@ export const validateGetTaskActivity = [
     .bail()
     .custom(async (activityId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const activity = await TaskActivity.findOne({
         _id: activityId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!activity) throw new Error("Activity not found in your organization");
@@ -1450,9 +1474,9 @@ export const validateGetTaskActivity = [
 
 /**
  * @json {
- *   "route": "PUT /tasks/:taskId/activities/:activityId",
+ *   "route": "PUT /api/tasks/:taskId/activities/:activityId",
  *   "purpose": "Update an existing activity.",
- *   "validates": ["activityId","activity","attachments","materialIds"],
+ *   "validates": ["activityId","activity","attachments","materials"],
  *   "rules": ["Tenant-scoped", "Attachments constraints", "Materials validation"]
  * }
  */
@@ -1466,9 +1490,11 @@ export const validateUpdateTaskActivity = [
     .bail()
     .custom(async (activityId, { req }) => {
       const orgId = req.user?.organization?._id;
+      const deptId = req.user?.department?._id;
       const activity = await TaskActivity.findOne({
         _id: activityId,
         organization: orgId,
+        department: deptId,
         isDeleted: false,
       });
       if (!activity) throw new Error("Activity not found in your organization");
@@ -1487,7 +1513,7 @@ export const validateUpdateTaskActivity = [
   validateAttachmentsArray,
   ...validateAttachmentFields,
 
-  body("materialIds")
+  body("materials")
     .optional({ nullable: true })
     .isArray()
     .withMessage("Materials must be an array")
@@ -1498,7 +1524,7 @@ export const validateUpdateTaskActivity = [
       }
       return true;
     }),
-  body("materialIds.*.material")
+  body("materials.*.materialId")
     .optional({ nullable: true })
     .isMongoId()
     .withMessage("Material ID must be a valid MongoDB ID")
@@ -1514,35 +1540,53 @@ export const validateUpdateTaskActivity = [
       if (!mat) throw new Error("Material not found in your organization");
       return true;
     }),
-  body("materialIds.*.quantity")
+  body("materials.*.quantity")
     .optional({ nullable: true })
     .isFloat({ min: 0 })
     .withMessage("Quantity must be a non-negative number"),
-  body("materialIds.*.unitPrice")
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Unit price must be a non-negative number"),
-  body("materialIds.*.totalCost")
-    .optional({ nullable: true })
-    .isFloat({ min: 0 })
-    .withMessage("Total cost must be a non-negative number"),
 
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("task")
+    .not()
+    .exists()
+    .withMessage(
+      "task cannot be provided. Parent task is determined from URL parameters"
+    ),
+  body("taskModel")
+    .not()
+    .exists()
+    .withMessage(
+      "taskModel cannot be provided. Parent task model is determined from URL parameters"
+    ),
+  body("parent")
+    .not()
+    .exists()
+    .withMessage(
+      "parent cannot be provided. Parent is determined from URL parameters"
+    ),
+  body("parentId")
+    .not()
+    .exists()
+    .withMessage(
+      "parentId cannot be provided. Parent is determined from URL parameters"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
-    const { activity, attachments, materialIds } = req.body;
+    const { activity, attachments, materials } = req.body;
     req.validated.body = {
       activity: activity?.trim(),
       attachments: attachments || [],
-      materialIds:
-        Array.isArray(materialIds) && materialIds.length > 0
-          ? materialIds.map((m) => ({
-              material: m.material?.toString(),
+      materials:
+        Array.isArray(materials) && materials.length > 0
+          ? materials.map((m) => ({
+              materialId: m.materialId?.toString(),
               quantity:
                 m.quantity !== undefined ? Number(m.quantity) : undefined,
-              unitPrice:
-                m.unitPrice !== undefined ? Number(m.unitPrice) : undefined,
-              totalCost:
-                m.totalCost !== undefined ? Number(m.totalCost) : undefined,
             }))
           : undefined,
     };
@@ -1553,7 +1597,7 @@ export const validateUpdateTaskActivity = [
 
 /**
  * @json {
- *   "route": "DELETE /tasks/:taskId/activities/:activityId",
+ *   "route": "DELETE /api/tasks/:taskId/activities/:activityId",
  *   "purpose": "Soft delete an activity with cascade deletion.",
  *   "validates": ["activityId"],
  *   "rules": ["Tenant-scoped existence validation"]
@@ -1582,7 +1626,7 @@ export const validateDeleteTaskActivity = [
 
 /**
  * @json {
- *   "route": "POST /tasks/:taskId/activities/:activityId/restore",
+ *   "route": "POST /api/tasks/:taskId/activities/:activityId/restore",
  *   "purpose": "Restore a soft-deleted activity with cascade restoration.",
  *   "validates": ["activityId"],
  *   "rules": ["Tenant-scoped existence (deleted) validation"]
@@ -1614,21 +1658,35 @@ export const validateRestoreTaskActivity = [
  * @json {
  *   "route": "POST /tasks/:taskId/comments",
  *   "purpose": "Create a new comment on any entity (tasks, activities, or other comments for threading).",
- *   "validates": ["parentId","parentModel","comment","mentionIds","attachments"],
- *   "rules": ["Tenant-scoped existence for parent", "Mentions uniqueness and existence", "Attachment constraints"]
+ *   "validates": ["taskId","parentId","parentModel","comment","mentionIds","attachments"],
+ *   "rules": ["Tenant-scoped existence for parent", "Mentions uniqueness and existence", "Attachment constraints", "Parent determined from URL for task comments"]
  * }
  */
 export const validateCreateTaskComment = [
-  body("parentId")
+  param("taskId")
     .exists({ checkFalsy: true })
-    .withMessage("parentId is required")
+    .withMessage("Task ID is required")
     .bail()
+    .isMongoId()
+    .withMessage("Task ID must be a valid MongoDB ID")
+    .bail()
+    .custom(async (taskId, { req }) => {
+      const orgId = req.user?.organization?._id;
+      const task = await BaseTask.findOne({
+        _id: taskId,
+        organization: orgId,
+        isDeleted: false,
+      });
+      if (!task) throw new Error("Task not found in your organization");
+      req.foundTask = task;
+      return true;
+    }),
+  body("parentId")
+    .optional({ nullable: true })
     .isMongoId()
     .withMessage("parentId must be a valid MongoDB ID"),
   body("parentModel")
-    .exists({ checkFalsy: true })
-    .withMessage("parentModel is required")
-    .bail()
+    .optional({ nullable: true })
     .isIn(TASK_COMMENT_PARENT_MODELS)
     .withMessage(
       `parentModel must be one of: ${TASK_COMMENT_PARENT_MODELS.join(", ")}`
@@ -1637,11 +1695,29 @@ export const validateCreateTaskComment = [
     .custom(async (parentModel, { req }) => {
       const orgId = req.user?.organization?._id;
       const parentId = req.body.parentId;
+      const taskId = req.params.taskId;
+
+      // If no parentId/parentModel provided, default to task from URL
+      if (!parentId && !parentModel) {
+        return true;
+      }
+
+      // Both must be provided together
+      if ((parentId && !parentModel) || (!parentId && parentModel)) {
+        throw new Error("parentId and parentModel must be provided together");
+      }
+
       if (!mongoose.isValidObjectId(parentId)) return false;
 
       if (
         ["RoutineTask", "AssignedTask", "ProjectTask"].includes(parentModel)
       ) {
+        // If commenting on a task, it must be the task from the URL
+        if (parentId !== taskId) {
+          throw new Error(
+            "When commenting on a task, parentId must match the taskId from URL"
+          );
+        }
         const task = await BaseTask.findOne({
           _id: parentId,
           organization: orgId,
@@ -1652,11 +1728,14 @@ export const validateCreateTaskComment = [
       } else if (parentModel === "TaskActivity") {
         const act = await TaskActivity.findOne({
           _id: parentId,
+          task: taskId,
           organization: orgId,
           isDeleted: false,
         });
         if (!act)
-          throw new Error("Parent activity not found in your organization");
+          throw new Error(
+            "Parent activity not found or does not belong to this task"
+          );
       } else if (parentModel === "TaskComment") {
         const com = await TaskComment.findOne({
           _id: parentId,
@@ -1715,13 +1794,30 @@ export const validateCreateTaskComment = [
   validateAttachmentsArray,
   ...validateAttachmentFields,
 
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("parent")
+    .not()
+    .exists()
+    .withMessage(
+      "parent cannot be provided. Use parentId and parentModel, or omit to comment on the task from URL"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const { parentId, parentModel, comment, mentionIds, attachments } =
       req.body;
+
+    // If no parentId/parentModel provided, default to task from URL
+    const finalParentId = parentId || req.params.taskId;
+    const finalParentModel = parentModel || req.foundTask.taskType;
+
     req.validated.body = {
-      parentId,
-      parentModel,
+      parentId: finalParentId,
+      parentModel: finalParentModel,
       comment: comment?.trim(),
       mentionIds: dedupeIds(mentionIds),
       attachments: attachments || [],
@@ -1912,6 +2008,30 @@ export const validateUpdateTaskComment = [
   validateAttachmentsArray,
   ...validateAttachmentFields,
 
+  body("organizationId")
+    .not()
+    .exists()
+    .withMessage(
+      "organizationId cannot be provided. Organization is determined from authentication context"
+    ),
+  body("parent")
+    .not()
+    .exists()
+    .withMessage(
+      "parent cannot be modified. Parent is determined at creation time"
+    ),
+  body("parentId")
+    .not()
+    .exists()
+    .withMessage(
+      "parentId cannot be modified. Parent is determined at creation time"
+    ),
+  body("parentModel")
+    .not()
+    .exists()
+    .withMessage(
+      "parentModel cannot be modified. Parent is determined at creation time"
+    ),
   body().custom((_, { req }) => {
     req.validated = req.validated || {};
     const { comment, mentionIds, attachments } = req.body;
