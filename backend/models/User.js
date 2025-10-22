@@ -22,12 +22,7 @@ import {
   SUPER_ADMIN_ROLE,
   DEFAULT_USER_ROLE,
 } from "../utils/constants.js";
-import {
-  getDateOnly,
-  getTodayDateOnly,
-  compareDatesOnly,
-  isDateNotInFuture,
-} from "../utils/helpers.js";
+import { isDateNotInFuture } from "../utils/helpers.js";
 
 /**
  * User Schema - Represents users within organizations for the task management system

@@ -1,7 +1,7 @@
 // client/src/redux/features/auth/authApi.js
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import { logout } from "./authSlice";
+import { clearCredentials } from "./authSlice";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -14,71 +14,6 @@ const axiosInstance = axios.create({
   },
 });
 
-// Flag to prevent multiple simultaneous refresh attempts
-let isRefreshing = false;
-let failedQueue = [];
-
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-
-  failedQueue = [];
-};
-
-// Response interceptor to handle 401 errors with token refresh
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise(function (resolve, reject) {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(() => {
-            return axiosInstance(originalRequest);
-          })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      return new Promise(function (resolve, reject) {
-        axiosInstance
-          .get("/auth/refresh-token")
-          .then(({ data }) => {
-            // Store the new token/user data if needed
-            if (data.user) {
-              // We need to dispatch the action, but we don't have access to store here
-              // The actual user update will happen in the auth slice
-            }
-            processQueue(null, data);
-            resolve(axiosInstance(originalRequest));
-          })
-          .catch((err) => {
-            processQueue(err, null);
-            reject(err);
-          })
-          .finally(() => {
-            isRefreshing = false;
-          });
-      });
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// Auth thunks using createAsyncThunk
 export const loginUser = createAsyncThunk(
   "auth/login",
   async (credentials, { rejectWithValue }) => {
@@ -87,10 +22,20 @@ export const loginUser = createAsyncThunk(
       // console.log("thunks response", response.data);
       return response.data;
     } catch (error) {
-      console.log("thunks", error);
-      return rejectWithValue(
-        error.response?.data?.message || error.message || "Login failed"
-      );
+      // console.log("thunks", error);
+      // Return full error object from backend with HTTP status code
+      if (error.response?.data) {
+        return rejectWithValue({
+          ...error.response.data,
+          statusCode: error.response.status, // Add HTTP status code
+        });
+      }
+      // Network error fallback
+      return rejectWithValue({
+        message: error.message || "Login failed",
+        errorCode: "NETWORK_ERROR",
+        statusCode: 0,
+      });
     }
   }
 );
@@ -99,16 +44,26 @@ export const logoutUser = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axiosInstance.post("/auth/logout");
+      const response = await axiosInstance.delete("/auth/logout");
       // Dispatch logout to clear local state regardless of API response
-      dispatch(logout());
+      dispatch(clearCredentials());
       return response.data;
     } catch (error) {
       // Still logout locally even if API call fails
-      dispatch(logout());
-      return rejectWithValue(
-        error.response?.data?.message || error.message || "Logout failed"
-      );
+      dispatch(clearCredentials());
+      // Return full error object from backend with HTTP status code
+      if (error.response?.data) {
+        return rejectWithValue({
+          ...error.response.data,
+          statusCode: error.response.status,
+        });
+      }
+      // Network error fallback
+      return rejectWithValue({
+        message: error.message || "Logout failed",
+        errorCode: "NETWORK_ERROR",
+        statusCode: 0,
+      });
     }
   }
 );
@@ -123,9 +78,19 @@ export const registerUser = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || error.message || "Registration failed"
-      );
+      // Return full error object from backend with HTTP status code
+      if (error.response?.data) {
+        return rejectWithValue({
+          ...error.response.data,
+          statusCode: error.response.status,
+        });
+      }
+      // Network error fallback
+      return rejectWithValue({
+        message: error.message || "Registration failed",
+        errorCode: "NETWORK_ERROR",
+        statusCode: 0,
+      });
     }
   }
 );
@@ -137,11 +102,19 @@ export const forgotPassword = createAsyncThunk(
       const response = await axiosInstance.post("/auth/forgot-password", email);
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          "Password reset request failed"
-      );
+      // Return full error object from backend with HTTP status code
+      if (error.response?.data) {
+        return rejectWithValue({
+          ...error.response.data,
+          statusCode: error.response.status,
+        });
+      }
+      // Network error fallback
+      return rejectWithValue({
+        message: error.message || "Password reset request failed",
+        errorCode: "NETWORK_ERROR",
+        statusCode: 0,
+      });
     }
   }
 );
@@ -156,11 +129,19 @@ export const resetPassword = createAsyncThunk(
       );
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          "Password reset failed"
-      );
+      // Return full error object from backend with HTTP status code
+      if (error.response?.data) {
+        return rejectWithValue({
+          ...error.response.data,
+          statusCode: error.response.status,
+        });
+      }
+      // Network error fallback
+      return rejectWithValue({
+        message: error.message || "Password reset failed",
+        errorCode: "NETWORK_ERROR",
+        statusCode: 0,
+      });
     }
   }
 );
@@ -173,10 +154,20 @@ export const refreshToken = createAsyncThunk(
       return response.data;
     } catch (error) {
       // If refresh fails, logout user
-      dispatch(logout());
-      return rejectWithValue(
-        error.response?.data?.message || error.message || "Token refresh failed"
-      );
+      dispatch(clearCredentials());
+      // Return full error object from backend with HTTP status code
+      if (error.response?.data) {
+        return rejectWithValue({
+          ...error.response.data,
+          statusCode: error.response.status,
+        });
+      }
+      // Network error fallback
+      return rejectWithValue({
+        message: error.message || "Token refresh failed",
+        errorCode: "NETWORK_ERROR",
+        statusCode: 0,
+      });
     }
   }
 );

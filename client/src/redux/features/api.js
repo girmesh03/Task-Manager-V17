@@ -1,6 +1,6 @@
 // client/src/redux/features/api.js
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { logout, setCredentials } from "./auth/authSlice";
+import { clearCredentials, setCredentials } from "./auth/authSlice";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -30,6 +30,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
     if (refreshResult.data) {
       // Update the user data
+      console.log("refreshResult.data", refreshResult.data);
       api.dispatch(setCredentials(refreshResult.data));
 
       // Retry the original request with new token
@@ -37,7 +38,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
     } else {
       // Refresh failed - logout user
       console.log("Token refresh failed - logging out");
-      api.dispatch(logout());
+      api.dispatch(clearCredentials());
     }
   }
 

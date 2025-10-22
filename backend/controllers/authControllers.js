@@ -290,12 +290,12 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
   const { email } = req.validated.body;
 
   // Find user by email with organization details
-  const user = await User.findOne({ email }).populate({
-    path: "organization",
-    match: { isDeleted: false },
-    select:
-      "_id name description email phone address industry logoUrl createdBy createdAt",
-  });
+  const user = await User.findOne({ email })
+    .populate({ path: "organization", select: "name isDeleted" })
+    .populate({
+      path: "department",
+      select: "name organization isDeleted",
+    });
 
   if (!user) {
     // Don't reveal if user exists or not for security
@@ -380,11 +380,10 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
     passwordResetExpires: { $gt: Date.now() },
   })
     .select("+passwordResetToken +passwordResetExpires")
+    .populate({ path: "organization", select: "name isDeleted" })
     .populate({
-      path: "organization",
-      match: { isDeleted: false },
-      select:
-        "_id name description email phone address industry logoUrl createdBy createdAt",
+      path: "department",
+      select: "name organization isDeleted",
     });
 
   if (!user || !user.verifyPasswordResetToken(token)) {
