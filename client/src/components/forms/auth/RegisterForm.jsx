@@ -1,9 +1,9 @@
 // src/components/forms/auth/RegisterForm.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useForm, FormProvider } from "react-hook-form";
 import { toast } from "react-toastify";
-import { useDispatch, useSelector } from "react-redux";
+import { handleRTKError } from "../../../utils/errorHandler";
 import {
   Button,
   Box,
@@ -27,8 +27,8 @@ import BusinessIcon from "@mui/icons-material/Business";
 import KeyboardArrowLeft from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRight from "@mui/icons-material/KeyboardArrowRight";
 
-import { registerUser } from "../../../redux/features/auth/authApi";
-import { clearError, selectAuth } from "../../../redux/features/auth/authSlice";
+import { useAuth } from "../../../hooks/useAuth";
+import { Link } from "react-router";
 import OrganizationDetailsStep from "./OrganizationDetailsStep";
 import UserDetailsStep from "./UserDetailsStep";
 import UploadAttachmentsStep from "./UploadAttachmentsStep";
@@ -113,10 +113,21 @@ function ColorlibStepIcon(props) {
 const RegisterForm = () => {
   const [activeStep, setActiveStep] = useState(1); // Start from step 1
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { isLoading, error } = useSelector(selectAuth);
+  const {
+    isAuthenticated,
+    isLoading,
+    error,
+    register: registerUser,
+  } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const methods = useForm({
     mode: "onTouched",
@@ -197,7 +208,6 @@ const RegisterForm = () => {
 
   const onSubmit = async (data) => {
     try {
-      dispatch(clearError());
       const registrationData = {
         organizationData: {
           name: data.organizationName,
@@ -219,14 +229,17 @@ const RegisterForm = () => {
         },
       };
 
-      await dispatch(registerUser(registrationData)).unwrap();
+      await registerUser(registrationData).unwrap();
       toast.success(
         "Organization registered successfully! Please login to continue."
       );
       navigate("/login", { replace: true });
     } catch (err) {
-      console.error("Registration error:", err);
-      toast.error(err || "Registration failed");
+      // Use global error handler for consistent error handling
+      handleRTKError(
+        err,
+        "Registration failed. Please check your information and try again."
+      );
     }
   };
 
@@ -311,189 +324,234 @@ const RegisterForm = () => {
   const isFirstStep = activeStep === 1;
 
   return (
-    <FormProvider {...methods}>
-      <Box sx={{ textAlign: "center", mb: 4 }}>
-        <BusinessIcon
-          sx={{
-            fontSize: 48,
-            color: "primary.main",
-            mb: 2,
-          }}
-        />
-        <Typography
-          variant="h4"
-          component="h1"
-          gutterBottom
-          color="text.primary"
-          fontWeight={600}
-          sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" } }}
-        >
-          Create Organization
-        </Typography>
-
-        <Typography variant="body2" color="text.secondary">
-          Set up your organization and create your admin account
-        </Typography>
-      </Box>
-
-      {/* Conditional Stepper Rendering */}
-      {isMobile ? renderMobileStepper() : renderDesktopStepper()}
-
-      {isLastStep ? (
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-          {getStepContent()}
-
-          {/* Action buttons for desktop */}
-          {!isMobile && (
-            <Box sx={{ display: "flex", flexDirection: "row", pt: 3 }}>
-              <Button
-                color="inherit"
-                disabled={isFirstStep || isLoading}
-                onClick={handleBack}
-                sx={{
-                  mr: 1,
-                  py: 1.5,
-                  px: 3,
-                  fontSize: "1rem",
-                }}
-              >
-                Back
-              </Button>
-              <Box sx={{ flex: "1 1 auto" }} />
-
-              <Button
-                variant="contained"
-                color="secondary"
-                type="submit"
-                disabled={isLoading}
-                startIcon={
-                  isLoading ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : null
-                }
-                sx={{
-                  py: 1.5,
-                  px: 4,
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                }}
-              >
-                {isLoading ? "Creating..." : "Create"}
-              </Button>
-            </Box>
-          )}
-        </Box>
-      ) : (
-        <>
-          {getStepContent()}
-          {!isMobile && (
-            <Box sx={{ display: "flex", flexDirection: "row", pt: 3 }}>
-              <Button
-                color="inherit"
-                disabled={isFirstStep || isLoading}
-                onClick={handleBack}
-                sx={{
-                  mr: 1,
-                  py: 1.5,
-                  px: 3,
-                  fontSize: "1rem",
-                }}
-              >
-                Back
-              </Button>
-              <Box sx={{ flex: "1 1 auto" }} />
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={handleNext}
-                disabled={isLoading}
-                sx={{
-                  py: 1.5,
-                  px: 3,
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                }}
-              >
-                {activeStep === 3 ? "Review" : "Next"}
-              </Button>
-            </Box>
-          )}
-        </>
-      )}
-
-      {/* Fixed MobileStepper for mobile devices */}
-      {isMobile && (
-        <MobileStepper
-          variant="dots"
-          steps={steps.length}
-          position="static"
-          activeStep={activeStep - 1} // Convert to 0-based for MobileStepper
-          sx={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            bgcolor: "background.paper",
-            borderTop: 1,
-            borderColor: "divider",
-            zIndex: 1000,
-            "& .MuiMobileStepper-dot": {
-              width: 8,
-              height: 8,
-            },
-            "& .MuiMobileStepper-dotActive": {
-              backgroundColor: "primary.main",
-            },
-          }}
-          nextButton={
-            isLastStep ? (
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={handleSubmit(onSubmit)}
-                disabled={isLoading}
-                startIcon={
-                  isLoading ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : null
-                }
-                sx={{
-                  py: 1,
-                  px: 2,
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                }}
-              >
-                {isLoading ? "Creating..." : "Create"}
-              </Button>
-            ) : (
-              <Button size="small" onClick={handleNext} disabled={isLoading}>
-                {activeStep === 3 ? "Review" : "Next"}
-                {theme.direction === "rtl" ? (
-                  <KeyboardArrowLeft />
-                ) : (
-                  <KeyboardArrowRight />
-                )}
-              </Button>
-            )
-          }
-          backButton={
-            <Button
-              size="small"
-              onClick={handleBack}
-              disabled={isFirstStep || isLoading}
+    <Card
+      variant="outlined"
+      sx={{
+        maxWidth: 800,
+        width: "100%",
+        boxShadow: 2,
+        mb: { xs: 8, sm: 0 },
+        mx: "auto",
+      }}
+    >
+      <CardContent sx={{ p: { sm: 2 } }}>
+        <FormProvider {...methods}>
+          <Box sx={{ textAlign: "center", mb: 4 }}>
+            <BusinessIcon
+              sx={{
+                fontSize: 48,
+                color: "primary.main",
+                mb: 2,
+              }}
+            />
+            <Typography
+              variant="h4"
+              component="h1"
+              gutterBottom
+              color="text.primary"
+              fontWeight={600}
+              sx={{ fontSize: { xs: "1.75rem", sm: "2.125rem" } }}
             >
-              {theme.direction === "rtl" ? (
-                <KeyboardArrowRight />
-              ) : (
-                <KeyboardArrowLeft />
+              Create Organization
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary">
+              Set up your organization and create your admin account
+            </Typography>
+          </Box>
+
+          {/* Conditional Stepper Rendering */}
+          {isMobile ? renderMobileStepper() : renderDesktopStepper()}
+
+          {isLastStep ? (
+            <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+              {getStepContent()}
+
+              {/* Action buttons for desktop */}
+              {!isMobile && (
+                <Box sx={{ display: "flex", flexDirection: "row", pt: 3 }}>
+                  <Button
+                    color="inherit"
+                    disabled={isFirstStep || isLoading}
+                    onClick={handleBack}
+                    sx={{
+                      mr: 1,
+                      py: 1.5,
+                      px: 3,
+                      fontSize: "1rem",
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Box sx={{ flex: "1 1 auto" }} />
+
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    type="submit"
+                    disabled={isLoading}
+                    startIcon={
+                      isLoading ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : null
+                    }
+                    sx={{
+                      py: 1.5,
+                      px: 4,
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {isLoading ? "Creating..." : "Create"}
+                  </Button>
+                </Box>
               )}
-              Back
-            </Button>
-          }
-        />
-      )}
-    </FormProvider>
+            </Box>
+          ) : (
+            <>
+              {getStepContent()}
+              {!isMobile && (
+                <Box sx={{ display: "flex", flexDirection: "row", pt: 3 }}>
+                  <Button
+                    color="inherit"
+                    disabled={isFirstStep || isLoading}
+                    onClick={handleBack}
+                    sx={{
+                      mr: 1,
+                      py: 1.5,
+                      px: 3,
+                      fontSize: "1rem",
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Box sx={{ flex: "1 1 auto" }} />
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleNext}
+                    disabled={isLoading}
+                    sx={{
+                      py: 1.5,
+                      px: 3,
+                      fontSize: "1rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {activeStep === 3 ? "Review" : "Next"}
+                  </Button>
+                </Box>
+              )}
+            </>
+          )}
+
+          {/* Fixed MobileStepper for mobile devices */}
+          {isMobile && (
+            <MobileStepper
+              variant="dots"
+              steps={steps.length}
+              position="static"
+              activeStep={activeStep - 1} // Convert to 0-based for MobileStepper
+              sx={{
+                position: "fixed",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                bgcolor: "background.paper",
+                borderTop: 1,
+                borderColor: "divider",
+                zIndex: 1000,
+                "& .MuiMobileStepper-dot": {
+                  width: 8,
+                  height: 8,
+                },
+                "& .MuiMobileStepper-dotActive": {
+                  backgroundColor: "primary.main",
+                },
+              }}
+              nextButton={
+                isLastStep ? (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleSubmit(onSubmit)}
+                    disabled={isLoading}
+                    startIcon={
+                      isLoading ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : null
+                    }
+                    sx={{
+                      py: 1,
+                      px: 2,
+                      fontSize: "0.875rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {isLoading ? "Creating..." : "Create"}
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    onClick={handleNext}
+                    disabled={isLoading}
+                  >
+                    {activeStep === 3 ? "Review" : "Next"}
+                    {theme.direction === "rtl" ? (
+                      <KeyboardArrowLeft />
+                    ) : (
+                      <KeyboardArrowRight />
+                    )}
+                  </Button>
+                )
+              }
+              backButton={
+                <Button
+                  size="small"
+                  onClick={handleBack}
+                  disabled={isFirstStep || isLoading}
+                >
+                  {theme.direction === "rtl" ? (
+                    <KeyboardArrowRight />
+                  ) : (
+                    <KeyboardArrowLeft />
+                  )}
+                  Back
+                </Button>
+              }
+            />
+          )}
+        </FormProvider>
+
+        {/* Already have account link */}
+        <Box sx={{ mt: 4, textAlign: "center" }}>
+          <Typography variant="body2" color="text.secondary">
+            Already have an account?{" "}
+            <Link
+              to="/login"
+              style={{
+                color: "inherit",
+                textDecoration: "none",
+              }}
+            >
+              <Typography
+                component="span"
+                variant="body2"
+                color="primary.main"
+                sx={{
+                  fontWeight: 600,
+                  "&:hover": {
+                    textDecoration: "underline",
+                  },
+                }}
+              >
+                Sign in here
+              </Typography>
+            </Link>
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
   );
 };
 

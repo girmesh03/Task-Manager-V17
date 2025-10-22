@@ -6,7 +6,6 @@ import storage from "redux-persist/lib/storage";
 // Import API slice and features
 import { apiSlice } from "../features/api";
 import authReducer from "../features/auth/authSlice";
-import tasksReducer from "../features/tasks/tasksSlice";
 
 const authPersistConfig = {
   key: "auth",
@@ -20,7 +19,6 @@ export const store = configureStore({
   reducer: {
     [apiSlice.reducerPath]: apiSlice.reducer,
     auth: persistedAuth,
-    tasks: tasksReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
