@@ -7,13 +7,26 @@ verification/
 # docs
 docs/
 
-# env files
+# Environment files
 .env
+.env.local
+.env.production
+.env.development
 */*/\.env
 */.env
+**/.env
 
 # mock files
 backend/mock
+
+# Build outputs
+node_modules
+dist
+dist-ssr
+build
+*.local
+client/dist
+backend/dist
 
 # Logs
 logs
@@ -24,18 +37,38 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# OS files
+.DS_Store
+Thumbs.db
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# PM2
+.pm2
+ecosystem.config.js
+
+# Coverage
+coverage
+*.lcov
+.nyc_output
+
+# Temporary files
+*.tmp
+*.temp
+.cache
+
+# Database
+*.db
+*.sqlite
+
+# Uploads
+uploads/
+temp/

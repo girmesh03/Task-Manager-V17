@@ -3,17 +3,17 @@ import { createBrowserRouter } from "react-router";
 import RootLayout from "../layouts/RootLayout.jsx";
 import PublicLayout from "../layouts/PublicLayout.jsx";
 import DashboardLayout from "../layouts/DashboardLayout.jsx";
+import { ProtectedRoute, PublicRoute } from "../components/auth/index.js";
 import { LoadingFallback } from "../components/common/MuiLoading.jsx";
 import NotFound from "../pages/NotFound.jsx";
-import RouteError from "../components/common/RouteError.jsx";
-import { ProtectedRoute, PublicRoute } from "../components/auth/index.js";
+import ErrorBoundary from "../components/common/ErrorBoundary.jsx";
 
 const router = createBrowserRouter([
   {
     path: "/",
     Component: RootLayout,
     HydrateFallback: LoadingFallback,
-    ErrorBoundary: RouteError,
+    ErrorBoundary: ErrorBoundary,
     children: [
       // Public routes with PublicLayout
       {
@@ -108,14 +108,14 @@ const router = createBrowserRouter([
           },
           // Administration Section (SuperAdmins)
           {
-            path: "organization",
+            path: "admin/organization",
             lazy: async () => {
               const m = await import("../pages/Organization.jsx");
               return { Component: m.default };
             },
           },
           {
-            path: "departments",
+            path: "admin/departments",
             lazy: async () => {
               const m = await import("../pages/Departments.jsx");
               return { Component: m.default };

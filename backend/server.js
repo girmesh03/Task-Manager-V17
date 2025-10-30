@@ -15,8 +15,26 @@ const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
 
 const server = http.createServer(app);
 
+// Validate required environment variables
+const validateEnvironment = () => {
+  const required = ["MONGODB_URI", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
+
+  const missing = required.filter((key) => !process.env[key]);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}`
+    );
+  }
+
+  console.log("✅ Environment variables validated");
+};
+
 const startServer = async () => {
   try {
+    // Validate environment
+    validateEnvironment();
+
     // Connect to MongoDB
     await connectDB();
 

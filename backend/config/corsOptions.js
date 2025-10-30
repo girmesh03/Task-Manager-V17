@@ -13,9 +13,13 @@ const corsOptions = {
     if (allowedOrigins.includes(origin) || !origin) {
       callback(null, true);
     } else {
-      const errorType = "CORS_VIOLATION_ERROR";
       console.warn(`CORS violation attempt blocked from origin: ${origin}`);
-      callback(new CustomError("Not allowed by CORS", 403, errorType));
+      callback(
+        CustomError.authorization("Not allowed by CORS", {
+          origin,
+          allowedOrigins,
+        })
+      );
     }
   },
   credentials: true,

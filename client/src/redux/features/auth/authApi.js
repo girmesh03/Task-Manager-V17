@@ -2,6 +2,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { clearCredentials } from "./authSlice";
+import { apiSlice } from "../api";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -45,12 +46,20 @@ export const logoutUser = createAsyncThunk(
   async (_, { rejectWithValue, dispatch }) => {
     try {
       const response = await axiosInstance.delete("/auth/logout");
-      // Dispatch logout to clear local state regardless of API response
+
+      // Clear Redux auth state
       dispatch(clearCredentials());
+
+      // Socket.IO disconnection will be handled automatically by RootLayout
+      // useEffect detecting isAuthenticated change
+
+      dispatch(apiSlice.util.resetApiState());
+
       return response.data;
     } catch (error) {
-      // Still logout locally even if API call fails
+      dispatch(apiSlice.util.resetApiState());
       dispatch(clearCredentials());
+
       // Return full error object from backend with HTTP status code
       if (error.response?.data) {
         return rejectWithValue({
@@ -154,6 +163,7 @@ export const refreshToken = createAsyncThunk(
       return response.data;
     } catch (error) {
       // If refresh fails, logout user
+      dispatch(apiSlice.util.resetApiState());
       dispatch(clearCredentials());
       // Return full error object from backend with HTTP status code
       if (error.response?.data) {

@@ -24,17 +24,10 @@ import MuiTextField from "../../common/MuiTextField";
 import { handleRTKError } from "../../../utils/errorHandler";
 
 const LoginForm = () => {
-  const { isAuthenticated, isLoading, error, login } = useAuth();
+  const { isLoading, error, login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Redirect if user is already authenticated
-  useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isAuthenticated, isLoading, navigate]);
 
   const {
     register,

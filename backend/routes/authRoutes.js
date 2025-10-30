@@ -54,12 +54,12 @@ router.route("/login").post(validateLogin, loginUser);
  * @json {
  *   "method": "DELETE",
  *   "path": "/api/auth/logout",
- *   "middleware": ["rateLimiter", "verifyJWT"],
+ *   "middleware": ["rateLimiter", "verifyRefreshToken"],
  *   "controller": "logoutUser",
  *   "description": "Logout user and clear authentication cookies"
  * }
  */
-router.route("/logout").delete(verifyJWT, logoutUser);
+router.route("/logout").delete(verifyRefreshToken, logoutUser);
 
 /**
  * @json {

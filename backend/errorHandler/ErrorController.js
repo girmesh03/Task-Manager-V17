@@ -6,6 +6,10 @@ import CustomError from "./CustomError.js";
  */
 const collectErrorContext = (error, req) => {
   const context = {
+    // Request tracking
+    correlationId:
+      req.id || req.headers["x-correlation-id"] || generateCorrelationId(),
+
     // Request information
     url: req.originalUrl,
     method: req.method,
@@ -217,6 +221,13 @@ const handleSpecificErrors = (error, req) => {
   );
 };
 
+/**
+ * Generate a unique correlation ID for request tracking
+ */
+const generateCorrelationId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
 const globalErrorHandler = (error, req, res, next) => {
   /* 1. enrich / convert the incoming error */
   const handledError = handleSpecificErrors(error, req);
@@ -237,6 +248,7 @@ const globalErrorHandler = (error, req, res, next) => {
       ? handledError.message
       : "An unexpected error occurred",
     errorCode: handledError.errorCode || "INTERNAL_SERVER_ERROR",
+    correlationId: handledError.context?.correlationId,
 
     /* expose context only when we already show details and not in production */
     ...(showDetails &&
