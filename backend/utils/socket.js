@@ -32,11 +32,9 @@ const socketAuth = async (socket, next) => {
 
     if (!token && !refreshToken) {
       return next(
-        new CustomError(
-          "Authentication required",
-          401,
-          "AUTHENTICATION_REQUIRED_ERROR"
-        )
+        CustomError.authentication("Authentication required", {
+          reason: "No tokens provided",
+        })
       );
     }
 
@@ -66,7 +64,9 @@ const socketAuth = async (socket, next) => {
 
             if (!user) {
               return next(
-                new CustomError("User not found", 401, "USER_NOT_FOUND_ERROR")
+                CustomError.authentication("User not found", {
+                  userId: refreshDecoded.userId,
+                })
               );
             }
 
@@ -74,7 +74,10 @@ const socketAuth = async (socket, next) => {
             const userStatus = checkUserStatus(user);
             if (userStatus.status) {
               return next(
-                new CustomError(userStatus.message, 401, userStatus.errorCode)
+                CustomError.authentication(userStatus.message, {
+                  userId: user._id,
+                  reason: userStatus.errorCode,
+                })
               );
             }
 
@@ -84,14 +87,14 @@ const socketAuth = async (socket, next) => {
             return next();
           } catch (refreshError) {
             return next(
-              new CustomError(
+              CustomError.authentication(
                 refreshError.name === "TokenExpiredError"
                   ? "Refresh token expired"
                   : "Invalid refresh token",
-                401,
-                refreshError.name === "TokenExpiredError"
-                  ? "REFRESH_TOKEN_EXPIRED_ERROR"
-                  : "INVALID_REFRESH_TOKEN_ERROR"
+                {
+                  errorName: refreshError.name,
+                  reason: "Token refresh failed",
+                }
               )
             );
           }
@@ -113,7 +116,9 @@ const socketAuth = async (socket, next) => {
 
     if (!user) {
       return next(
-        new CustomError("User not found", 401, "USER_NOT_FOUND_ERROR")
+        CustomError.authentication("User not found", {
+          userId: decoded?.userId,
+        })
       );
     }
 
@@ -121,7 +126,10 @@ const socketAuth = async (socket, next) => {
     const userStatus = checkUserStatus(user);
     if (userStatus.status) {
       return next(
-        new CustomError(userStatus.message, 401, userStatus.errorCode)
+        CustomError.authentication(userStatus.message, {
+          userId: user._id,
+          reason: userStatus.errorCode,
+        })
       );
     }
 
@@ -131,11 +139,10 @@ const socketAuth = async (socket, next) => {
   } catch (error) {
     console.error("Socket authentication error:", error);
     return next(
-      new CustomError(
-        "Authentication failed",
-        401,
-        "SOCKET_AUTHENTICATION_ERROR"
-      )
+      CustomError.authentication("Authentication failed", {
+        errorMessage: error.message,
+        errorName: error.name,
+      })
     );
   }
 };

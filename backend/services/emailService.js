@@ -39,11 +39,10 @@ class EmailService {
       console.log("Email service initialized successfully");
     } catch (error) {
       console.error("Email service initialization failed:", error);
-      throw new CustomError(
-        "Failed to initialize email service",
-        500,
-        "EMAIL_SERVICE_INIT_ERROR"
-      );
+      throw CustomError.internal("Failed to initialize email service", {
+        errorMessage: error.message,
+        errorName: error.name,
+      });
     }
   }
 
@@ -94,14 +93,20 @@ class EmailService {
         emailItem.attempts++;
 
         if (emailItem.attempts < this.retryAttempts) {
-          console.log(`Email failed, retrying (${emailItem.attempts}/${this.retryAttempts}):`, error.message);
+          console.log(
+            `Email failed, retrying (${emailItem.attempts}/${this.retryAttempts}):`,
+            error.message
+          );
 
           // Add back to queue with delay
           setTimeout(() => {
             this.emailQueue.push(emailItem);
           }, this.retryDelay);
         } else {
-          console.error(`Email failed permanently after ${this.retryAttempts} attempts:`, error);
+          console.error(
+            `Email failed permanently after ${this.retryAttempts} attempts:`,
+            error
+          );
           // Could implement dead letter queue or notification here
         }
       }
@@ -116,11 +121,9 @@ class EmailService {
    */
   async sendEmail(emailData) {
     if (!this.transporter) {
-      throw new CustomError(
-        "Email service not initialized",
-        500,
-        "EMAIL_SERVICE_NOT_INITIALIZED_ERROR"
-      );
+      throw CustomError.internal("Email service not initialized", {
+        reason: "Transporter not configured",
+      });
     }
 
     const mailOptions = {
@@ -170,7 +173,7 @@ class EmailService {
       message,
       taskTitle,
       taskType,
-      organizationName
+      organizationName,
     } = notificationData;
 
     const subject = `${title} - ${process.env.APP_NAME}`;
@@ -198,7 +201,7 @@ class EmailService {
       context: {
         type: "task_notification",
         userId: notificationData.userId,
-        taskId: notificationData.taskId
+        taskId: notificationData.taskId,
       },
     });
   }
@@ -208,14 +211,8 @@ class EmailService {
    * @param {Object} announcementData - Announcement data
    */
   async sendAnnouncementEmail(announcementData) {
-    const {
-      email,
-      firstName,
-      title,
-      message,
-      organizationName,
-      senderName
-    } = announcementData;
+    const { email, firstName, title, message, organizationName, senderName } =
+      announcementData;
 
     const subject = `Announcement: ${title} - ${process.env.APP_NAME}`;
     const html = this.getAnnouncementTemplate(
@@ -225,7 +222,12 @@ class EmailService {
       organizationName,
       senderName
     );
-    const text = this.getAnnouncementText(firstName, title, message, senderName);
+    const text = this.getAnnouncementText(
+      firstName,
+      title,
+      message,
+      senderName
+    );
 
     return await this.queueEmail({
       to: email,
@@ -235,7 +237,7 @@ class EmailService {
       context: {
         type: "announcement",
         userId: announcementData.userId,
-        organizationId: announcementData.organizationId
+        organizationId: announcementData.organizationId,
       },
     });
   }
@@ -249,7 +251,11 @@ class EmailService {
 
     const subject = `Password Reset - ${process.env.APP_NAME}`;
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
-    const html = this.getPasswordResetTemplate(firstName, resetUrl, organizationName);
+    const html = this.getPasswordResetTemplate(
+      firstName,
+      resetUrl,
+      organizationName
+    );
     const text = this.getPasswordResetText(firstName, resetUrl);
 
     return await this.queueEmail({
@@ -259,7 +265,7 @@ class EmailService {
       text,
       context: {
         type: "password_reset",
-        userId: resetData.userId
+        userId: resetData.userId,
       },
     });
   }
@@ -291,7 +297,9 @@ class EmailService {
           </div>
           <div class="content">
             <h2>Hello ${firstName}!</h2>
-            <p>Welcome to <strong>${organizationName}</strong> on ${process.env.APP_NAME}. We're excited to have you on board!</p>
+            <p>Welcome to <strong>${organizationName}</strong> on ${
+      process.env.APP_NAME
+    }. We're excited to have you on board!</p>
             <p>You can now:</p>
             <ul>
               <li>Manage and track your tasks</li>
@@ -301,12 +309,16 @@ class EmailService {
             </ul>
             <p>Get started by logging into your account:</p>
             <p style="text-align: center;">
-              <a href="${process.env.CLIENT_URL}/login" class="button">Login to Your Account</a>
+              <a href="${
+                process.env.CLIENT_URL
+              }/login" class="button">Login to Your Account</a>
             </p>
             <p>If you have any questions, feel free to reach out to your administrator.</p>
           </div>
           <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} ${process.env.APP_NAME}. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} ${
+      process.env.APP_NAME
+    }. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -323,7 +335,9 @@ Welcome to ${process.env.APP_NAME}!
 
 Hello ${firstName}!
 
-Welcome to ${organizationName} on ${process.env.APP_NAME}. We're excited to have you on board!
+Welcome to ${organizationName} on ${
+      process.env.APP_NAME
+    }. We're excited to have you on board!
 
 You can now:
 - Manage and track your tasks
@@ -342,7 +356,14 @@ If you have any questions, feel free to reach out to your administrator.
   /**
    * Get task notification email HTML template
    */
-  getTaskNotificationTemplate(firstName, title, message, taskTitle, taskType, organizationName) {
+  getTaskNotificationTemplate(
+    firstName,
+    title,
+    message,
+    taskTitle,
+    taskType,
+    organizationName
+  ) {
     return `
       <!DOCTYPE html>
       <html>
@@ -376,11 +397,15 @@ If you have any questions, feel free to reach out to your administrator.
               <p><strong>Organization:</strong> ${organizationName}</p>
             </div>
             <p style="text-align: center;">
-              <a href="${process.env.CLIENT_URL}/tasks" class="button">View Tasks</a>
+              <a href="${
+                process.env.CLIENT_URL
+              }/tasks" class="button">View Tasks</a>
             </p>
           </div>
           <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} ${process.env.APP_NAME}. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} ${
+      process.env.APP_NAME
+    }. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -414,7 +439,13 @@ View your tasks: ${process.env.CLIENT_URL}/tasks
   /**
    * Get announcement email HTML template
    */
-  getAnnouncementTemplate(firstName, title, message, organizationName, senderName) {
+  getAnnouncementTemplate(
+    firstName,
+    title,
+    message,
+    organizationName,
+    senderName
+  ) {
     return `
       <!DOCTYPE html>
       <html>
@@ -446,11 +477,15 @@ View your tasks: ${process.env.CLIENT_URL}/tasks
               <p><em>- ${senderName}</em></p>
             </div>
             <p style="text-align: center;">
-              <a href="${process.env.CLIENT_URL}/dashboard" class="button">View Dashboard</a>
+              <a href="${
+                process.env.CLIENT_URL
+              }/dashboard" class="button">View Dashboard</a>
             </p>
           </div>
           <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} ${process.env.APP_NAME}. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} ${
+      process.env.APP_NAME
+    }. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -509,7 +544,9 @@ View your dashboard: ${process.env.CLIENT_URL}/dashboard
           </div>
           <div class="content">
             <h2>Hello ${firstName}!</h2>
-            <p>You have requested to reset your password for your ${process.env.APP_NAME} account at <strong>${organizationName}</strong>.</p>
+            <p>You have requested to reset your password for your ${
+              process.env.APP_NAME
+            } account at <strong>${organizationName}</strong>.</p>
             <div class="warning">
               <p><strong>⚠️ Security Notice:</strong> If you did not request this password reset, please ignore this email and contact your administrator immediately.</p>
             </div>
@@ -522,7 +559,9 @@ View your dashboard: ${process.env.CLIENT_URL}/dashboard
             <p style="word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 4px;">${resetUrl}</p>
           </div>
           <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} ${process.env.APP_NAME}. All rights reserved.</p>
+            <p>&copy; ${new Date().getFullYear()} ${
+      process.env.APP_NAME
+    }. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -539,7 +578,9 @@ View your dashboard: ${process.env.CLIENT_URL}/dashboard
 
 Hello ${firstName}!
 
-You have requested to reset your password for your ${process.env.APP_NAME} account.
+You have requested to reset your password for your ${
+      process.env.APP_NAME
+    } account.
 
 ⚠️ Security Notice: If you did not request this password reset, please ignore this email and contact your administrator immediately.
 

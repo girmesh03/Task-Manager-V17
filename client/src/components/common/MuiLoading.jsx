@@ -7,7 +7,7 @@ import LinearProgress from "@mui/material/LinearProgress";
 import Typography from "@mui/material/Typography";
 
 export const LoadingFallback = ({
-  message = "initializing...",
+  message = "Loading...",
   height = "100vh",
   sx = {},
 }) => {

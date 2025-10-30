@@ -3,10 +3,8 @@ import { Outlet } from "react-router";
 import { useTheme } from "@mui/material/styles";
 import { ToastContainer } from "react-toastify";
 import { Box } from "@mui/material";
-import ErrorBoundary from "../components/common/ErrorBoundary";
 
 const RootLayout = () => {
-  console.log("RootLayout");
   const theme = useTheme();
 
   return (
@@ -26,13 +24,7 @@ const RootLayout = () => {
           overflow: "hidden",
         }}
       >
-        {/* ErrorBoundary catches React component errors only */}
-        <ErrorBoundary
-          title="Component Error"
-          fallbackMessage="A component error occurred. Please try refreshing the page."
-        >
-          <Outlet />
-        </ErrorBoundary>
+        <Outlet />
       </Box>
       <ToastContainer
         position="bottom-right"

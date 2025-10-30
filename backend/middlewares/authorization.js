@@ -740,11 +740,14 @@ export const requirePlatformUser = (req, res, next) => {
 
   if (!req.user.isPlatformUser) {
     return next(
-      CustomError.forbidden("This action requires platform user privileges", {
-        userId: req.user._id,
-        organizationId: req.user.organization._id,
-        isPlatformUser: req.user.isPlatformUser,
-      })
+      CustomError.authorization(
+        "This action requires platform user privileges",
+        {
+          userId: req.user._id,
+          organizationId: req.user.organization._id,
+          isPlatformUser: req.user.isPlatformUser,
+        }
+      )
     );
   }
 

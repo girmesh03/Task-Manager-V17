@@ -1,6 +1,6 @@
 // client/src/layouts/DashboardLayout.jsx
 import { Outlet, useNavigate, useLocation } from "react-router";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { handleRTKError } from "../utils/errorHandler";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
@@ -56,9 +56,10 @@ const DashboardLayout = () => {
   const handleLogout = async () => {
     try {
       await logout().unwrap();
-      navigate("/", { replace: true });
+      navigate("/login", { replace: true });
     } catch (error) {
       // Use global error handler for consistent error handling
+      // console.log("logout error dashboard", error);
       handleRTKError(error, "Logout failed. Please try again.");
     }
     handleUserMenuClose();
@@ -97,9 +98,13 @@ const DashboardLayout = () => {
           {
             text: "Organization",
             icon: <BusinessIcon />,
-            path: "/organization",
+            path: "/admin/organization",
           },
-          { text: "Departments", icon: <GroupsIcon />, path: "/departments" },
+          {
+            text: "Departments",
+            icon: <GroupsIcon />,
+            path: "/admin/departments",
+          },
           { text: "Users", icon: <PeopleIcon />, path: "/admin/users" },
         ],
       });
@@ -122,17 +127,20 @@ const DashboardLayout = () => {
     return sections;
   }, [isHod, isSuperAdmin, isPlatformUser]);
 
-  const handleMenuClick = (path) => {
-    // Use startTransition for smoother navigation
-    React.startTransition(() => {
-      navigate(path);
-    });
-    if (mobileOpen) {
-      setMobileOpen(false);
-    }
-  };
+  const handleMenuClick = useCallback(
+    (path) => {
+      // Use startTransition for smoother navigation
+      React.startTransition(() => {
+        navigate(path);
+      });
+      if (mobileOpen) {
+        setMobileOpen(false);
+      }
+    },
+    [navigate, mobileOpen]
+  );
 
-  const handleOrganizationClick = () => {
+  const handleOrganizationClick = useCallback(() => {
     // Navigate to dashboard and close drawer on mobile
     React.startTransition(() => {
       navigate("/dashboard");
@@ -140,11 +148,14 @@ const DashboardLayout = () => {
     if (mobileOpen) {
       setMobileOpen(false);
     }
-  };
+  }, [navigate, mobileOpen]);
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
+  const isActive = useCallback(
+    (path) => {
+      return location.pathname === path;
+    },
+    [location.pathname]
+  );
 
   const drawer = React.useMemo(
     () => (
@@ -211,7 +222,7 @@ const DashboardLayout = () => {
 
         {/* Navigation Menu */}
         <Box sx={{ flex: 1, overflow: "auto", pt: 2 }}>
-          {menuSections.map((section, sectionIndex) => (
+          {menuSections.map((section) => (
             <List
               key={section.title}
               subheader={
@@ -278,11 +289,12 @@ const DashboardLayout = () => {
       </Box>
     ),
     [
-      location.pathname,
+      // location.pathname,
       handleMenuClick,
       handleOrganizationClick,
       menuSections,
       user,
+      isActive,
     ]
   );
 
@@ -295,7 +307,7 @@ const DashboardLayout = () => {
       }
     }
     return "Dashboard";
-  }, [location.pathname, menuSections]);
+  }, [menuSections, isActive]);
 
   return (
     <Box sx={{ flex: 1, display: "flex", height: "100%" }}>

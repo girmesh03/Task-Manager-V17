@@ -184,7 +184,7 @@ export const loginUser = asyncHandler(async (req, res, next) => {
  * }
  */
 export const logoutUser = asyncHandler(async (req, res, next) => {
-  // User is already authenticated via verifyJWT middleware
+  // User is already authenticated via verifyRefreshToken middleware
   // We can access the user via req.user
 
   // Clear cookies

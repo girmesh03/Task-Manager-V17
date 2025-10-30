@@ -1,64 +1,10 @@
 // client/src/utils/errorHandler.js
 /**
  * Comprehensive Error Handling Utility
- *
- * Handles all types of errors in the application:
- * 1. Backend API errors (from RTK Query/Axios)
- * 2. Frontend React errors (component errors)
- * 3. Network errors
- * 4. Validation errors
- * 5. Authentication/Authorization errors
  */
 
 import { toast } from "react-toastify";
-
-/**
- * Standardized error codes matching backend
- */
-export const ERROR_CODES = {
-  // Client errors (4xx)
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  AUTHENTICATION_ERROR: "AUTHENTICATION_ERROR",
-  AUTHORIZATION_ERROR: "AUTHORIZATION_ERROR",
-  NOT_FOUND_ERROR: "NOT_FOUND_ERROR",
-  CONFLICT_ERROR: "CONFLICT_ERROR",
-  TOO_MANY_REQUESTS_ERROR: "TOO_MANY_REQUESTS_ERROR",
-
-  // Server errors (5xx)
-  INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
-  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
-
-  // Network errors
-  NETWORK_ERROR: "NETWORK_ERROR",
-  TIMEOUT_ERROR: "TIMEOUT_ERROR",
-
-  // Frontend errors
-  COMPONENT_ERROR: "COMPONENT_ERROR",
-  CHUNK_LOAD_ERROR: "CHUNK_LOAD_ERROR",
-  ROUTE_ERROR: "ROUTE_ERROR",
-};
-
-/**
- * Error severity levels
- */
-export const ERROR_SEVERITY = {
-  LOW: "low",
-  MEDIUM: "medium",
-  HIGH: "high",
-  CRITICAL: "critical",
-};
-
-/**
- * Error type classifications
- */
-export const ERROR_TYPES = {
-  BACKEND: "backend",
-  FRONTEND: "frontend",
-  NETWORK: "network",
-  VALIDATION: "validation",
-  AUTH: "auth",
-  ROUTE: "route",
-};
+import { ERROR_CODES, ERROR_SEVERITY, ERROR_TYPES } from "./constants.js";
 
 /**
  * Normalized error structure
@@ -106,8 +52,8 @@ class AppError {
    * Get user-friendly message
    */
   getUserMessage() {
-    // In production, sanitize technical error messages
-    if (import.meta.env.PROD && !this.isOperational) {
+    // In production, sanitize technical error messages for frontend errors
+    if (import.meta.env.PROD && this.type === ERROR_TYPES.FRONTEND) {
       return "An unexpected error occurred. Please try again later.";
     }
     return this.message;
@@ -149,34 +95,30 @@ class AppError {
  *   context?: object,
  *   stack?: string (dev only)
  * }
- *
- * Error Flow:
- * 1. RTK Query: error = { status: 401, data: { backend response } }
- * 2. Redux Thunk unwrap(): error = rejectWithValue(error.response?.data) = { backend response }
- * 3. Axios direct: error = { response: { status, data: { backend response } } }
  */
 const parseBackendError = (error) => {
   // 1. RTK Query error structure (from apiSlice via useGetTasksQuery, etc.)
-  // Structure: { status: 401, data: { success, status, message, errorCode, context } }
+  // Structure: { status: status, data: { success, status, message, errorCode, context } }
   if (error?.status && error?.data) {
     return {
       message: error.data.message || "An error occurred",
       errorCode: error.data.errorCode || ERROR_CODES.INTERNAL_SERVER_ERROR,
       statusCode: error.status,
       context: error.data.context || {},
+      isBackendError: true,
     };
   }
 
   // 2. Redux Thunk unwrap() error (from authApi via login().unwrap())
   // When unwrap() throws, it throws the value from rejectWithValue()
   // Structure: { success, status, message, errorCode, context } (backend response)
-  // OR: { message, errorCode, statusCode } (network error fallback)
   if (error?.message && error?.errorCode) {
     return {
       message: error.message,
       errorCode: error.errorCode,
       statusCode: error.statusCode || 500,
       context: error.context || {},
+      isBackendError: true,
     };
   }
 
@@ -190,6 +132,7 @@ const parseBackendError = (error) => {
         error.response.data.errorCode || ERROR_CODES.INTERNAL_SERVER_ERROR,
       statusCode: error.response.status || 500,
       context: error.response.data.context || {},
+      isBackendError: true,
     };
   }
 
@@ -201,78 +144,77 @@ const parseBackendError = (error) => {
       errorCode: ERROR_CODES.NETWORK_ERROR,
       statusCode: 0,
       context: { type: "network" },
+      isBackendError: false, // Network errors are client-side
     };
   }
 
-  // 5. Legacy string error (backward compatibility)
-  if (typeof error === "string") {
-    // Determine error code based on message content
-    let errorCode = ERROR_CODES.INTERNAL_SERVER_ERROR;
-    let statusCode = 500;
+  return null; // Not a backend error
+};
 
-    const lowerError = error.toLowerCase();
+/**
+ * Parse frontend/client-side errors - generic handler for all non-backend errors
+ */
+const parseFrontendError = (error) => {
+  // Get the error type/constructor name dynamically
+  const errorType = error?.constructor?.name || "UnknownError";
+  const errorName = error?.name || "Error";
 
-    if (
-      lowerError.includes("invalid") ||
-      lowerError.includes("incorrect") ||
-      lowerError.includes("wrong") ||
-      lowerError.includes("authentication") ||
-      lowerError.includes("credentials")
-    ) {
-      errorCode = ERROR_CODES.AUTHENTICATION_ERROR;
-      statusCode = 401;
-    } else if (lowerError.includes("not found")) {
-      errorCode = ERROR_CODES.NOT_FOUND_ERROR;
-      statusCode = 404;
-    } else if (
-      lowerError.includes("already exists") ||
-      lowerError.includes("duplicate")
-    ) {
-      errorCode = ERROR_CODES.CONFLICT_ERROR;
-      statusCode = 409;
-    } else if (
-      lowerError.includes("validation") ||
-      lowerError.includes("required")
-    ) {
-      errorCode = ERROR_CODES.VALIDATION_ERROR;
-      statusCode = 400;
-    } else if (
-      lowerError.includes("unauthorized") ||
-      lowerError.includes("not authorized")
-    ) {
-      errorCode = ERROR_CODES.AUTHENTICATION_ERROR;
-      statusCode = 401;
-    } else if (
-      lowerError.includes("forbidden") ||
-      lowerError.includes("permission")
-    ) {
-      errorCode = ERROR_CODES.AUTHORIZATION_ERROR;
-      statusCode = 403;
-    }
-
+  // Special case: Chunk loading errors (dynamic import failures)
+  if (
+    error?.message?.includes("Loading chunk") ||
+    error?.message?.includes("ChunkLoadError")
+  ) {
     return {
-      message: error,
-      errorCode,
-      statusCode,
-      context: {},
+      message: "Failed to load application resources. Please refresh the page.",
+      errorCode: ERROR_CODES.CHUNK_LOAD_ERROR,
+      statusCode: 0,
+      context: {
+        type: "chunk_load",
+        errorType,
+        errorName,
+        originalMessage: error.message,
+      },
+      isBackendError: false,
     };
   }
 
-  // 6. Fallback for any other error type
+  // Special case: React component errors
+  if (error?.componentStack) {
+    return {
+      message: error.message || "A React component error occurred",
+      errorCode: ERROR_CODES.COMPONENT_ERROR,
+      statusCode: 0,
+      context: {
+        componentStack: error.componentStack,
+        type: "react_component",
+        errorType,
+        errorName,
+      },
+      isBackendError: false,
+    };
+  }
+
+  // Generic frontend error - catch all other frontend errors
   return {
     message:
       error?.message || error?.toString() || "An unexpected error occurred",
-    errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-    statusCode: 500,
-    context: {},
+    errorCode: ERROR_CODES.FRONTEND_ERROR,
+    statusCode: 0,
+    context: {
+      type: "frontend_runtime",
+      errorType,
+      errorName,
+      stack: error?.stack,
+    },
+    isBackendError: false,
   };
 };
 
 /**
  * Determine error severity based on error code and status
  */
-const determineErrorSeverity = (errorCode, statusCode) => {
-  // Critical errors
+const determineErrorSeverity = (errorCode, statusCode, isBackendError) => {
+  // Critical errors - backend 5xx and critical frontend errors
   if (statusCode >= 500) {
     return ERROR_SEVERITY.CRITICAL;
   }
@@ -283,6 +225,7 @@ const determineErrorSeverity = (errorCode, statusCode) => {
       ERROR_CODES.AUTHENTICATION_ERROR,
       ERROR_CODES.AUTHORIZATION_ERROR,
       ERROR_CODES.NETWORK_ERROR,
+      ERROR_CODES.CHUNK_LOAD_ERROR,
     ].includes(errorCode)
   ) {
     return ERROR_SEVERITY.HIGH;
@@ -294,6 +237,7 @@ const determineErrorSeverity = (errorCode, statusCode) => {
       ERROR_CODES.VALIDATION_ERROR,
       ERROR_CODES.CONFLICT_ERROR,
       ERROR_CODES.NOT_FOUND_ERROR,
+      ERROR_CODES.COMPONENT_ERROR,
     ].includes(errorCode)
   ) {
     return ERROR_SEVERITY.MEDIUM;
@@ -304,22 +248,23 @@ const determineErrorSeverity = (errorCode, statusCode) => {
 };
 
 /**
- * Determine error type based on error code
+ * Determine error type based on error code and source
  */
-const determineErrorType = (errorCode, originalError) => {
-  // Authentication/Authorization errors
-  if (
-    [
-      ERROR_CODES.AUTHENTICATION_ERROR,
-      ERROR_CODES.AUTHORIZATION_ERROR,
-    ].includes(errorCode)
-  ) {
-    return ERROR_TYPES.AUTH;
-  }
-
-  // Validation errors
-  if (errorCode === ERROR_CODES.VALIDATION_ERROR) {
-    return ERROR_TYPES.VALIDATION;
+const determineErrorType = (errorCode, isBackendError) => {
+  // Backend errors
+  if (isBackendError) {
+    if (
+      [
+        ERROR_CODES.AUTHENTICATION_ERROR,
+        ERROR_CODES.AUTHORIZATION_ERROR,
+      ].includes(errorCode)
+    ) {
+      return ERROR_TYPES.AUTH;
+    }
+    if (errorCode === ERROR_CODES.VALIDATION_ERROR) {
+      return ERROR_TYPES.VALIDATION;
+    }
+    return ERROR_TYPES.BACKEND;
   }
 
   // Network errors
@@ -330,23 +275,7 @@ const determineErrorType = (errorCode, originalError) => {
   }
 
   // Frontend errors
-  if (
-    [
-      ERROR_CODES.COMPONENT_ERROR,
-      ERROR_CODES.CHUNK_LOAD_ERROR,
-      ERROR_CODES.ROUTE_ERROR,
-    ].includes(errorCode)
-  ) {
-    return ERROR_TYPES.FRONTEND;
-  }
-
-  // Check if it's a React error
-  if (originalError?.componentStack) {
-    return ERROR_TYPES.FRONTEND;
-  }
-
-  // Default to backend error
-  return ERROR_TYPES.BACKEND;
+  return ERROR_TYPES.FRONTEND;
 };
 
 /**
@@ -361,51 +290,14 @@ export const handleError = (error, context = {}) => {
     return error;
   }
 
-  // Check for chunk loading errors first (before checking message property)
-  if (
-    error?.message?.includes("Loading chunk") ||
-    error?.message?.includes("ChunkLoadError")
-  ) {
-    parsedError = {
-      message: "Failed to load application resources. Please refresh the page.",
-      errorCode: ERROR_CODES.CHUNK_LOAD_ERROR,
-      statusCode: 0,
-      context: { type: "chunk_load" },
-    };
+  // First, try to parse as a backend/API error
+  const backendError = parseBackendError(error);
+  if (backendError) {
+    parsedError = backendError;
   }
-  // Check for React component errors
-  else if (error?.componentStack) {
-    parsedError = {
-      message: error.message || "A component error occurred",
-      errorCode: ERROR_CODES.COMPONENT_ERROR,
-      statusCode: 0,
-      context: {
-        componentStack: error.componentStack,
-        ...context,
-      },
-    };
-  }
-  // Check for backend/API errors (RTK Query, Redux Thunk, Axios, Network)
-  // This includes: error.status, error.data, error.message+errorCode, error.response, error.request
-  else if (
-    error?.status !== undefined || // RTK Query
-    error?.data !== undefined || // RTK Query
-    error?.errorCode !== undefined || // Redux Thunk unwrap()
-    error?.response !== undefined || // Axios
-    error?.request !== undefined || // Network error
-    typeof error === "string" // Legacy string error
-  ) {
-    parsedError = parseBackendError(error);
-  }
-  // Fallback for any other error type
+  // If not a backend error, parse as frontend error
   else {
-    parsedError = {
-      message:
-        error?.message || error?.toString() || "An unexpected error occurred",
-      errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-      statusCode: 500,
-      context: {},
-    };
+    parsedError = parseFrontendError(error);
   }
 
   // Create normalized AppError
@@ -413,20 +305,21 @@ export const handleError = (error, context = {}) => {
     message: parsedError.message,
     errorCode: parsedError.errorCode,
     statusCode: parsedError.statusCode,
-    type: determineErrorType(parsedError.errorCode, error),
+    type: determineErrorType(parsedError.errorCode, parsedError.isBackendError),
     severity: determineErrorSeverity(
       parsedError.errorCode,
-      parsedError.statusCode
+      parsedError.statusCode,
+      parsedError.isBackendError
     ),
     context: { ...parsedError.context, ...context },
     originalError: error,
-    isOperational: parsedError.statusCode < 500,
+    isOperational: parsedError.statusCode < 500 && !parsedError.isBackendError,
   });
 
   // Log error if needed
-  if (appError.shouldLog()) {
-    logError(appError);
-  }
+  // if (appError.shouldLog()) {
+  //   logError(appError);
+  // }
 
   return appError;
 };
@@ -568,6 +461,14 @@ export const isValidationError = (error) => {
   return isErrorType(error, ERROR_CODES.VALIDATION_ERROR);
 };
 
+/**
+ * Check if error is a frontend error
+ */
+export const isFrontendError = (error) => {
+  const appError = error instanceof AppError ? error : handleError(error);
+  return appError.type === ERROR_TYPES.FRONTEND;
+};
+
 export default {
   handleError,
   displayError,
@@ -578,8 +479,6 @@ export default {
   isAuthError,
   isNetworkError,
   isValidationError,
-  ERROR_CODES,
-  ERROR_SEVERITY,
-  ERROR_TYPES,
+  isFrontendError,
   AppError,
 };

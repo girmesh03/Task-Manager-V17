@@ -21,7 +21,8 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      state.user = action.payload;
+      // console.log("setCredentials", action.payload.data);
+      state.user = action.payload.data;
       state.isAuthenticated = true;
       state.isLoading = false;
       state.error = null;
@@ -94,7 +95,7 @@ const authSlice = createSlice({
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.isLoading = false;
         if (action.payload) {
-          state.user = action.payload;
+          state.user = action.payload.data;
           state.isAuthenticated = true;
         }
         state.error = null;

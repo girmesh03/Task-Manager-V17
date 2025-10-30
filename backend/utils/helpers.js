@@ -137,7 +137,7 @@ export const generateDateRange = (startDate, endDate) => {
   const end = new Date(endDate);
 
   while (currentDate <= end) {
-    dates.push(currentDate.toISOString().split('T')[0]); // YYYY-MM-DD format
+    dates.push(currentDate.toISOString().split("T")[0]); // YYYY-MM-DD format
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
@@ -178,7 +178,11 @@ export const generateMonthRange = (months = 6) => {
   const currentDate = new Date();
 
   for (let i = months - 1; i >= 0; i--) {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+    const date = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth() - i,
+      1
+    );
     monthRange.push(date.toISOString().substring(0, 7)); // YYYY-MM format
   }
 
@@ -227,8 +231,8 @@ export const createNotification = async (
       isDeleted: false,
       _id: { $ne: createdBy },
     })
-      .populate('organization', 'name')
-      .populate('department', 'name')
+      .populate("organization", "name")
+      .populate("department", "name")
       .session(session);
 
     const recipientIds = validRecipients.map((user) => user._id);
@@ -241,10 +245,12 @@ export const createNotification = async (
     }
 
     if (limitedRecipients.length > MAX_RECIPIENTS_PER_NOTIFICATION)
-      throw new CustomError(
+      throw CustomError.validation(
         `Too many notification recipients, maximum is ${MAX_RECIPIENTS_PER_NOTIFICATION}`,
-        400,
-        "NOTIFICATION_TOO_MANY_RECIPIENTS_ERROR"
+        {
+          recipientCount: limitedRecipients.length,
+          maxAllowed: MAX_RECIPIENTS_PER_NOTIFICATION,
+        }
       );
 
     const notification = new Notification({
@@ -271,13 +277,17 @@ export const createNotification = async (
       // Process email notifications asynchronously to avoid blocking
       setImmediate(async () => {
         try {
-          await sendNotificationEmails(notification, validRecipients, emailData);
+          await sendNotificationEmails(
+            notification,
+            validRecipients,
+            emailData
+          );
         } catch (emailError) {
-          console.error('Error sending notification emails:', emailError);
+          console.error("Error sending notification emails:", emailError);
           // Update notification with email error
           await Notification.findByIdAndUpdate(notification._id, {
-            'emailDelivery.error': emailError.message,
-            'emailDelivery.lastAttemptAt': new Date(),
+            "emailDelivery.error": emailError.message,
+            "emailDelivery.lastAttemptAt": new Date(),
           });
         }
       });
@@ -296,7 +306,11 @@ export const createNotification = async (
  * @param {User[]} recipients - Array of recipient user documents
  * @param {Object} emailData - Additional email data
  */
-export const sendNotificationEmails = async (notification, recipients, emailData = {}) => {
+export const sendNotificationEmails = async (
+  notification,
+  recipients,
+  emailData = {}
+) => {
   try {
     const emailPromises = [];
     let emailsSent = 0;
@@ -307,7 +321,11 @@ export const sendNotificationEmails = async (notification, recipients, emailData
         continue;
       }
 
-      const emailPromise = sendEmailForNotificationType(notification, recipient, emailData)
+      const emailPromise = sendEmailForNotificationType(
+        notification,
+        recipient,
+        emailData
+      )
         .then(() => {
           emailsSent++;
         })
@@ -323,14 +341,13 @@ export const sendNotificationEmails = async (notification, recipients, emailData
 
     // Update notification with email delivery status
     await Notification.findByIdAndUpdate(notification._id, {
-      'emailDelivery.sent': emailsSent > 0,
-      'emailDelivery.sentAt': emailsSent > 0 ? new Date() : undefined,
-      'emailDelivery.attempts': 1,
-      'emailDelivery.lastAttemptAt': new Date(),
+      "emailDelivery.sent": emailsSent > 0,
+      "emailDelivery.sentAt": emailsSent > 0 ? new Date() : undefined,
+      "emailDelivery.attempts": 1,
+      "emailDelivery.lastAttemptAt": new Date(),
     });
-
   } catch (error) {
-    console.error('Error in sendNotificationEmails:', error);
+    console.error("Error in sendNotificationEmails:", error);
     throw error;
   }
 };
@@ -349,16 +366,16 @@ export const shouldSendEmailForNotificationType = (user, notificationType) => {
   const preferences = user.emailPreferences;
 
   switch (notificationType) {
-    case 'Created':
-    case 'Updated':
-    case 'Deleted':
-    case 'Restored':
+    case "Created":
+    case "Updated":
+    case "Deleted":
+    case "Restored":
       return preferences.taskNotifications;
-    case 'Mention':
+    case "Mention":
       return preferences.mentions;
-    case 'Welcome':
+    case "Welcome":
       return preferences.welcomeEmails;
-    case 'Announcement':
+    case "Announcement":
       return preferences.announcements;
     default:
       return preferences.taskNotifications; // Default to task notifications
@@ -371,18 +388,22 @@ export const shouldSendEmailForNotificationType = (user, notificationType) => {
  * @param {User} recipient - Recipient user document
  * @param {Object} emailData - Additional email data
  */
-export const sendEmailForNotificationType = async (notification, recipient, emailData) => {
+export const sendEmailForNotificationType = async (
+  notification,
+  recipient,
+  emailData
+) => {
   const baseData = {
     email: recipient.email,
     firstName: recipient.firstName,
     appName: process.env.APP_NAME,
     clientUrl: process.env.CLIENT_URL,
-    organizationName: recipient.organization?.name || 'Your Organization',
+    organizationName: recipient.organization?.name || "Your Organization",
     departmentName: recipient.department?.name,
   };
 
   switch (notification.type) {
-    case 'Welcome':
+    case "Welcome":
       return await emailService.queueEmail({
         to: recipient.email,
         subject: emailTemplates.welcome.subject(baseData.appName),
@@ -395,16 +416,16 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           role: recipient.role,
         }),
         context: {
-          type: 'welcome',
+          type: "welcome",
           userId: recipient._id,
           notificationId: notification._id,
         },
       });
 
-    case 'Created':
-    case 'Updated':
-    case 'Deleted':
-    case 'Restored':
+    case "Created":
+    case "Updated":
+    case "Deleted":
+    case "Restored":
       return await emailService.queueEmail({
         to: recipient.email,
         subject: emailTemplates.taskNotification.subject({
@@ -415,7 +436,7 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           ...baseData,
           title: notification.title,
           message: notification.message,
-          taskTitle: emailData.taskTitle || 'Task',
+          taskTitle: emailData.taskTitle || "Task",
           taskType: emailData.taskType || notification.entityModel,
           priority: emailData.priority,
           status: emailData.status,
@@ -426,7 +447,7 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           ...baseData,
           title: notification.title,
           message: notification.message,
-          taskTitle: emailData.taskTitle || 'Task',
+          taskTitle: emailData.taskTitle || "Task",
           taskType: emailData.taskType || notification.entityModel,
           priority: emailData.priority,
           status: emailData.status,
@@ -434,14 +455,14 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           assignedBy: emailData.assignedBy,
         }),
         context: {
-          type: 'task_notification',
+          type: "task_notification",
           userId: recipient._id,
           taskId: notification.entity,
           notificationId: notification._id,
         },
       });
 
-    case 'Mention':
+    case "Mention":
       return await emailService.queueEmail({
         to: recipient.email,
         subject: emailTemplates.mention.subject({
@@ -451,30 +472,30 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
         html: emailTemplates.mention.html({
           ...baseData,
           entityType: notification.entityModel,
-          entityTitle: emailData.entityTitle || 'Item',
+          entityTitle: emailData.entityTitle || "Item",
           entityId: notification.entity,
-          mentionedBy: emailData.mentionedBy || 'Someone',
+          mentionedBy: emailData.mentionedBy || "Someone",
           mentionedAt: notification.sentAt,
           content: emailData.content || notification.message,
         }),
         text: emailTemplates.mention.text({
           ...baseData,
           entityType: notification.entityModel,
-          entityTitle: emailData.entityTitle || 'Item',
+          entityTitle: emailData.entityTitle || "Item",
           entityId: notification.entity,
-          mentionedBy: emailData.mentionedBy || 'Someone',
+          mentionedBy: emailData.mentionedBy || "Someone",
           mentionedAt: notification.sentAt,
           content: emailData.content || notification.message,
         }),
         context: {
-          type: 'mention',
+          type: "mention",
           userId: recipient._id,
           entityId: notification.entity,
           notificationId: notification._id,
         },
       });
 
-    case 'Announcement':
+    case "Announcement":
       return await emailService.queueEmail({
         to: recipient.email,
         subject: emailTemplates.announcement.subject({
@@ -485,7 +506,7 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           ...baseData,
           title: notification.title,
           message: notification.message,
-          senderName: emailData.senderName || 'Administrator',
+          senderName: emailData.senderName || "Administrator",
           senderPosition: emailData.senderPosition,
           sentAt: notification.sentAt,
         }),
@@ -493,12 +514,12 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           ...baseData,
           title: notification.title,
           message: notification.message,
-          senderName: emailData.senderName || 'Administrator',
+          senderName: emailData.senderName || "Administrator",
           senderPosition: emailData.senderPosition,
           sentAt: notification.sentAt,
         }),
         context: {
-          type: 'announcement',
+          type: "announcement",
           userId: recipient._id,
           organizationId: notification.organization,
           notificationId: notification._id,
@@ -514,18 +535,18 @@ export const sendEmailForNotificationType = async (notification, recipient, emai
           ...baseData,
           title: notification.title,
           message: notification.message,
-          taskTitle: emailData.taskTitle || 'Task',
+          taskTitle: emailData.taskTitle || "Task",
           taskType: emailData.taskType || notification.entityModel,
         }),
         text: emailTemplates.taskNotification.text({
           ...baseData,
           title: notification.title,
           message: notification.message,
-          taskTitle: emailData.taskTitle || 'Task',
+          taskTitle: emailData.taskTitle || "Task",
           taskType: emailData.taskType || notification.entityModel,
         }),
         context: {
-          type: 'general_notification',
+          type: "general_notification",
           userId: recipient._id,
           notificationId: notification._id,
         },
@@ -547,11 +568,12 @@ export const sendBulkAnnouncementEmails = async (
   organizationId,
   session
 ) => {
-  const { title, message, senderName, senderPosition, createdBy, department } = announcementData;
+  const { title, message, senderName, senderPosition, createdBy, department } =
+    announcementData;
 
   // Create notification for announcement
   const notification = await createNotification(session, {
-    type: 'Announcement',
+    type: "Announcement",
     title,
     message,
     recipients: recipientIds,
@@ -574,17 +596,21 @@ export const sendBulkAnnouncementEmails = async (
  * @param {mongoose.Types.ObjectId[]} recipientIds - Array of recipient user IDs
  * @param {mongoose.ClientSession} session - Database session (optional)
  */
-export const sendTaskReminderEmails = async (taskData, recipientIds, session = null) => {
+export const sendTaskReminderEmails = async (
+  taskData,
+  recipientIds,
+  session = null
+) => {
   try {
     // Get recipients with email preferences
     const recipients = await User.find({
       _id: { $in: recipientIds },
       isDeleted: false,
-      'emailPreferences.enabled': true,
-      'emailPreferences.taskReminders': true,
+      "emailPreferences.enabled": true,
+      "emailPreferences.taskReminders": true,
     })
-      .populate('organization', 'name')
-      .populate('department', 'name')
+      .populate("organization", "name")
+      .populate("department", "name")
       .session(session);
 
     const emailPromises = recipients.map(async (recipient) => {
@@ -609,7 +635,7 @@ export const sendTaskReminderEmails = async (taskData, recipientIds, session = n
         html: emailTemplates.taskReminder.html(emailData),
         text: emailTemplates.taskReminder.text(emailData),
         context: {
-          type: 'task_reminder',
+          type: "task_reminder",
           userId: recipient._id,
           taskId: taskData._id,
         },
@@ -617,9 +643,11 @@ export const sendTaskReminderEmails = async (taskData, recipientIds, session = n
     });
 
     await Promise.allSettled(emailPromises);
-    console.log(`Task reminder emails queued for ${recipients.length} recipients`);
+    console.log(
+      `Task reminder emails queued for ${recipients.length} recipients`
+    );
   } catch (error) {
-    console.error('Error sending task reminder emails:', error);
+    console.error("Error sending task reminder emails:", error);
     throw error;
   }
 };
