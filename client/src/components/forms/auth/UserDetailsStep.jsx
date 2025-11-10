@@ -11,6 +11,13 @@ import DepartmentIcon from "@mui/icons-material/AccountTree";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { IconButton } from "@mui/material";
+import {
+  MAX_USER_NAME_LENGTH,
+  MAX_POSITION_LENGTH,
+  MAX_DEPT_NAME_LENGTH,
+  MAX_DEPT_DESCRIPTION_LENGTH,
+  MIN_PASSWORD_LENGTH,
+} from "../../../utils/constants.js";
 
 const UserDetailsStep = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +39,10 @@ const UserDetailsStep = () => {
           {...register("firstName", {
             required: "First name is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 50, message: "Maximum 50 characters" },
+            maxLength: {
+              value: MAX_USER_NAME_LENGTH,
+              message: `Maximum ${MAX_USER_NAME_LENGTH} characters`,
+            },
             pattern: {
               value: /^[a-zA-Z]+$/,
               message: "Only letters  without space allowed",
@@ -51,7 +61,10 @@ const UserDetailsStep = () => {
           {...register("lastName", {
             required: "Last name is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 50, message: "Maximum 50 characters" },
+            maxLength: {
+              value: MAX_USER_NAME_LENGTH,
+              message: `Maximum ${MAX_USER_NAME_LENGTH} characters`,
+            },
             pattern: {
               value: /^[a-zA-Z]+$/,
               message: "Only letters without space allowed",
@@ -99,7 +112,10 @@ const UserDetailsStep = () => {
         <MuiTextField
           {...register("password", {
             required: "Password is required",
-            minLength: { value: 8, message: "Minimum 8 characters" },
+            minLength: {
+              value: MIN_PASSWORD_LENGTH,
+              message: `Minimum ${MIN_PASSWORD_LENGTH} characters`,
+            },
           })}
           error={errors.password}
           label="Password"
@@ -148,7 +164,10 @@ const UserDetailsStep = () => {
           {...register("position", {
             required: "Position is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 50, message: "Maximum 50 characters" },
+            maxLength: {
+              value: MAX_POSITION_LENGTH,
+              message: `Maximum ${MAX_POSITION_LENGTH} characters`,
+            },
             pattern: {
               value: /^[a-zA-Z\s]+$/,
               message: "Only letters and spaces allowed",
@@ -167,7 +186,10 @@ const UserDetailsStep = () => {
           {...register("departmentName", {
             required: "Department name is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 50, message: "Maximum 50 characters" },
+            maxLength: {
+              value: MAX_DEPT_NAME_LENGTH,
+              message: `Maximum ${MAX_DEPT_NAME_LENGTH} characters`,
+            },
           })}
           error={errors.departmentName}
           label="Department Name"
@@ -181,7 +203,10 @@ const UserDetailsStep = () => {
         <MuiTextField
           {...register("departmentDesc", {
             required: "Department description is required",
-            maxLength: { value: 200, message: "Maximum 200 characters" },
+            maxLength: {
+              value: MAX_DEPT_DESCRIPTION_LENGTH,
+              message: `Maximum ${MAX_DEPT_DESCRIPTION_LENGTH} characters`,
+            },
           })}
           error={errors.departmentDesc}
           label="Department Description"

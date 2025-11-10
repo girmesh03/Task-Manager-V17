@@ -11,6 +11,13 @@ import WorkIcon from "@mui/icons-material/Work";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import BusinessCenterIcon from "@mui/icons-material/BusinessCenter";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
+import {
+  MAX_ORG_NAME_LENGTH,
+  MAX_ORG_DESCRIPTION_LENGTH,
+  MAX_ADDRESS_LENGTH,
+  VALID_INDUSTRIES,
+  PHONE_REGEX,
+} from "../../../utils/constants.js";
 
 const ORGANIZATION_SIZES = [
   { id: "small", label: "Small", icon: <HomeWorkIcon fontSize="small" /> },
@@ -22,32 +29,10 @@ const ORGANIZATION_SIZES = [
   { id: "large", label: "Large", icon: <CorporateFareIcon fontSize="small" /> },
 ];
 
-const INDUSTRIES = [
-  { id: "hospitality", label: "Hospitality" },
-  { id: "technology", label: "Technology" },
-  { id: "healthcare", label: "Healthcare" },
-  { id: "finance", label: "Finance" },
-  { id: "education", label: "Education" },
-  { id: "manufacturing", label: "Manufacturing" },
-  { id: "retail", label: "Retail" },
-  { id: "construction", label: "Construction" },
-  { id: "transportation", label: "Transportation" },
-  { id: "energy", label: "Energy" },
-  { id: "agriculture", label: "Agriculture" },
-  { id: "real-estate", label: "Real Estate" },
-  { id: "media", label: "Media" },
-  { id: "telecommunications", label: "Telecommunications" },
-  { id: "automotive", label: "Automotive" },
-  { id: "aerospace", label: "Aerospace" },
-  { id: "pharmaceuticals", label: "Pharmaceuticals" },
-  { id: "consulting", label: "Consulting" },
-  { id: "legal", label: "Legal" },
-  { id: "non-profit", label: "Non-Profit" },
-  { id: "government", label: "Government" },
-  { id: "entertainment", label: "Entertainment" },
-  { id: "sports", label: "Sports" },
-  { id: "other", label: "Other" },
-];
+const INDUSTRIES = VALID_INDUSTRIES.map((industry) => ({
+  id: industry.toLowerCase().replace(/\s+/g, "-"),
+  label: industry,
+}));
 
 const OrganizationDetailsStep = () => {
   const {
@@ -63,7 +48,10 @@ const OrganizationDetailsStep = () => {
           {...register("organizationName", {
             required: "Organization name is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 100, message: "Maximum 100 characters" },
+            maxLength: {
+              value: MAX_ORG_NAME_LENGTH,
+              message: `Maximum ${MAX_ORG_NAME_LENGTH} characters`,
+            },
             pattern: {
               value: /^[a-zA-Z]+$/,
               message: "Only letters allowed",
@@ -102,9 +90,8 @@ const OrganizationDetailsStep = () => {
           {...register("organizationPhone", {
             required: "Phone number is required",
             pattern: {
-              value: /^(\+251[0-9]{9}|0[0-9]{9})$/,
-              message:
-                "Phone number must be in format: +2510123456789, +251123456789, or 0123456789",
+              value: PHONE_REGEX,
+              message: "Please enter a valid phone number",
             },
           })}
           required
@@ -121,7 +108,10 @@ const OrganizationDetailsStep = () => {
           {...register("organizationAddress", {
             required: "Address is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 200, message: "Maximum 200 characters" },
+            maxLength: {
+              value: MAX_ADDRESS_LENGTH,
+              message: `Maximum ${MAX_ADDRESS_LENGTH} characters`,
+            },
           })}
           required
           error={errors.organizationAddress}
@@ -171,7 +161,10 @@ const OrganizationDetailsStep = () => {
           {...register("description", {
             required: "Description is required",
             minLength: { value: 2, message: "Minimum 2 characters" },
-            maxLength: { value: 500, message: "Maximum 500 characters" },
+            maxLength: {
+              value: MAX_ORG_DESCRIPTION_LENGTH,
+              message: `Maximum ${MAX_ORG_DESCRIPTION_LENGTH} characters`,
+            },
           })}
           required
           error={errors.description}

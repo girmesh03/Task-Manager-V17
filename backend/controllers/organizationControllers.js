@@ -87,7 +87,7 @@ export const getAllOrganizations = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    organizations: result.docs,
   });
 });
 
@@ -224,7 +224,7 @@ export const updateOrganization = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Organization updated successfully",
-      data: updated,
+      organization: updated,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -288,7 +288,7 @@ export const deleteOrganization = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Organization soft-deleted successfully",
-      data: { organizationId, deletedAt: new Date().toISOString() },
+      organization: { organizationId, deletedAt: new Date().toISOString() },
     });
   } catch (err) {
     await session.abortTransaction();
@@ -372,7 +372,7 @@ export const restoreOrganization = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Organization restored successfully",
-      data: restored,
+      organization: restored,
     });
   } catch (err) {
     await session.abortTransaction();

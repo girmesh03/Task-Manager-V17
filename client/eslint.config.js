@@ -32,4 +32,22 @@ export default [
       "no-unused-vars": ["error", { varsIgnorePattern: "^[A-Z_]" }],
     },
   },
+  // Node.js environment for validation scripts
+  {
+    files: ["validation/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.node,
+      },
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module",
+      },
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      "no-unused-vars": ["error", { varsIgnorePattern: "^[A-Z_]" }],
+    },
+  },
 ];

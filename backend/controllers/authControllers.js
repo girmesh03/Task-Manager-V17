@@ -170,7 +170,7 @@ export const loginUser = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Login successful",
-    data: userResponse,
+    user: userResponse,
   });
 });
 
@@ -273,7 +273,7 @@ export const getRefreshToken = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Token refreshed successfully",
-    data: userResponse,
+    user: userResponse,
   });
 });
 

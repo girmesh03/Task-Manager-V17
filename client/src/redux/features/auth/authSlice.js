@@ -21,8 +21,8 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      // console.log("setCredentials", action.payload.data);
-      state.user = action.payload.data;
+      // console.log("setCredentials", action.payload.user);
+      state.user = action.payload.user;
       state.isAuthenticated = true;
       state.isLoading = false;
       state.error = null;
@@ -48,9 +48,9 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        // console.log("action", action.payload.data);
+        // console.log("action", action.payload.user);
         state.isLoading = false;
-        state.user = action.payload.data;
+        state.user = action.payload.user;
         state.isAuthenticated = true;
         state.error = null;
       })
@@ -95,7 +95,7 @@ const authSlice = createSlice({
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.isLoading = false;
         if (action.payload) {
-          state.user = action.payload.data;
+          state.user = action.payload.user;
           state.isAuthenticated = true;
         }
         state.error = null;

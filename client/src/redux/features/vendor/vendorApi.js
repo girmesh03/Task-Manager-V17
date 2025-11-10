@@ -39,32 +39,36 @@ export const vendorApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.VENDORS,
         params,
       }),
+      transformResponse: (response) => ({
+        vendors: response.vendors,
+        pagination: response.pagination,
+      }),
       providesTags: (result) =>
-        result?.data
+        result?.vendors
           ? [
-              ...result.data.map(({ _id }) => ({ type: "Vendor", id: _id })),
+              ...result.vendors.map(({ _id }) => ({ type: "Vendor", id: _id })),
               { type: "Vendor", id: "LIST" },
             ]
           : [{ type: "Vendor", id: "LIST" }],
     }),
 
     /**
-     * Get single vendor by ID
+     * Get single vendor by ID with project tasks, cost statistics, performance metrics, and contact info
      * @param {string} vendorId - Vendor ID
-     * @returns {Object} Vendor details with project statistics
+     * @returns {Object} Vendor details with tasks and statistics
      */
     getVendorById: builder.query({
       query: (vendorId) => `${API_ENDPOINTS.VENDORS}/${vendorId}`,
+      transformResponse: (response) => response.vendor,
       providesTags: (result, error, id) => [{ type: "Vendor", id }],
     }),
 
     /**
-     * Create new vendor
+     * Create new vendor for the organization
      * @param {Object} data - Vendor data
      * @param {string} data.name - Vendor name
-     * @param {string} data.email - Vendor email
+     * @param {string} data.email - Vendor email (optional)
      * @param {string} data.phone - Vendor phone
-     * @param {string} data.description - Vendor description
      * @returns {Object} Created vendor
      */
     createVendor: builder.mutation({
@@ -73,22 +77,26 @@ export const vendorApi = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      transformResponse: (response) => response.vendor,
       invalidatesTags: [{ type: "Vendor", id: "LIST" }],
     }),
 
     /**
-     * Update vendor
+     * Update vendor details
      * @param {Object} params - Update parameters
      * @param {string} params.vendorId - Vendor ID
-     * @param {Object} params.data - Updated vendor data
+     * @param {string} params.name - Updated vendor name (optional)
+     * @param {string} params.email - Updated vendor email (optional)
+     * @param {string} params.phone - Updated vendor phone (optional)
      * @returns {Object} Updated vendor
      */
     updateVendor: builder.mutation({
       query: ({ vendorId, ...data }) => ({
         url: `${API_ENDPOINTS.VENDORS}/${vendorId}`,
-        method: "PATCH",
+        method: "PUT",
         body: data,
       }),
+      transformResponse: (response) => response.vendor,
       invalidatesTags: (result, error, { vendorId }) => [
         { type: "Vendor", id: vendorId },
         { type: "Vendor", id: "LIST" },
@@ -96,18 +104,19 @@ export const vendorApi = apiSlice.injectEndpoints({
     }),
 
     /**
-     * Soft delete vendor (requires reassignment if used in active projects)
+     * Soft delete vendor with reassignment option for active project tasks
      * @param {Object} params - Delete parameters
      * @param {string} params.vendorId - Vendor ID
-     * @param {string} params.reassignToVendorId - New vendor ID for reassignment (required if vendor has active projects)
-     * @returns {Object} Deletion confirmation
+     * @param {string} params.reassignToVendorId - New vendor ID for reassignment (optional)
+     * @returns {Object} Deletion confirmation with reassignment details
      */
     deleteVendor: builder.mutation({
       query: ({ vendorId, reassignToVendorId }) => ({
         url: `${API_ENDPOINTS.VENDORS}/${vendorId}`,
         method: "DELETE",
-        body: reassignToVendorId ? { reassignToVendorId } : undefined,
+        body: reassignToVendorId ? { reassignToVendorId } : {},
       }),
+      transformResponse: (response) => response.vendor,
       invalidatesTags: (result, error, { vendorId }) => [
         { type: "Vendor", id: vendorId },
         { type: "Vendor", id: "LIST" },
@@ -123,8 +132,9 @@ export const vendorApi = apiSlice.injectEndpoints({
     restoreVendor: builder.mutation({
       query: (vendorId) => ({
         url: `${API_ENDPOINTS.VENDORS}/${vendorId}/restore`,
-        method: "PATCH",
+        method: "POST",
       }),
+      transformResponse: (response) => response.vendor,
       invalidatesTags: (result, error, vendorId) => [
         { type: "Vendor", id: vendorId },
         { type: "Vendor", id: "LIST" },

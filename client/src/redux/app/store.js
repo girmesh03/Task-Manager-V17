@@ -7,6 +7,12 @@ import storage from "redux-persist/lib/storage";
 import { apiSlice } from "../features/api";
 import authReducer from "../features/auth/authSlice";
 import taskReducer from "../features/task/taskSlice";
+import userReducer from "../features/user/userSlice";
+import departmentReducer from "../features/department/departmentSlice";
+import materialReducer from "../features/material/materialSlice";
+import vendorReducer from "../features/vendor/vendorSlice";
+import organizationReducer from "../features/organization/organizationSlice";
+import notificationReducer from "../features/notification/notificationSlice";
 
 const authPersistConfig = {
   key: "auth",
@@ -21,6 +27,12 @@ export const store = configureStore({
     [apiSlice.reducerPath]: apiSlice.reducer,
     auth: persistedAuth,
     task: taskReducer,
+    user: userReducer,
+    department: departmentReducer,
+    material: materialReducer,
+    vendor: vendorReducer,
+    organization: organizationReducer,
+    notification: notificationReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

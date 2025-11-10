@@ -1,69 +1,442 @@
 // client/src/pages/Tasks.jsx
-import React, { useEffect } from "react";
-import { useSelector } from "react-redux";
-import { useGetTasksQuery } from "../redux/features/task/taskApi";
+import { useState, useCallback, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Box,
+  Button,
+  IconButton,
+  Typography,
+  Tooltip,
+  Stack,
+  Paper,
+  Badge,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import BusinessIcon from "@mui/icons-material/Business";
+import InventoryIcon from "@mui/icons-material/Inventory";
+import { toast } from "react-toastify";
+import { LoadingFallback } from "../components/common/MuiLoading";
+import RouteError from "../components/common/RouteError";
+import MuiDialog from "../components/common/MuiDialog";
+import MuiDialogConfirm from "../components/common/MuiDialogConfirm";
+import TasksList from "../components/lists/TasksList";
+import TaskFilter from "../components/filters/TaskFilter";
+import {
+  useGetTasksQuery,
+  useDeleteTaskMutation,
+  useRestoreTaskMutation,
+} from "../redux/features/task/taskApi";
 import {
   selectTaskFilters,
   selectTaskPagination,
+  setFilters,
+  clearFilters,
+  setPage,
 } from "../redux/features/task/taskSlice";
-import { LoadingFallback } from "../components/common/MuiLoading";
-import RouteError from "../components/common/RouteError";
 import { handleRTKError } from "../utils/errorHandler";
-import { Box, Typography, Paper } from "@mui/material";
+
+/**
+ * Tasks Page Component
+ *
+ * Responsibilities:
+ * - Manage page-level state (dialogs, selected task, task type)
+ * - Handle API calls and mutations
+ * - Coordinate between filter, list, and form components
+ * - Handle loading and error states
+ * - Manage task type selection menu
+ *
+ * Delegation:
+ * - TasksList: Renders grid and pagination
+ * - TaskCard: Renders individual task cards (memoized)
+ * - TaskFilter: Handles filter UI
+ * - CreateUpdateTask: Handles form UI (to be implemented)
+ */
 
 const Tasks = () => {
+  const dispatch = useDispatch();
   const filters = useSelector(selectTaskFilters);
   const pagination = useSelector(selectTaskPagination);
 
-  const queryParams = {
-    page: pagination.page,
-    limit: pagination.limit,
-    sortBy: pagination.sortBy,
-    sortOrder: pagination.sortOrder,
-    ...(filters.taskType && { taskType: filters.taskType }),
-    ...(filters.status && { status: filters.status }),
-    ...(filters.priority && { priority: filters.priority }),
-    ...(filters.departmentId && { departmentId: filters.departmentId }),
-    ...(filters.assigneeId && { assigneeId: filters.assigneeId }),
-    ...(filters.vendorId && { vendorId: filters.vendorId }),
-    ...(filters.watcherId && { watcherId: filters.watcherId }),
-    ...(filters.createdBy && { createdBy: filters.createdBy }),
-    ...(filters.dueDateFrom && { dueDateFrom: filters.dueDateFrom }),
-    ...(filters.dueDateTo && { dueDateTo: filters.dueDateTo }),
-    ...(filters.dateFrom && { dateFrom: filters.dateFrom }),
-    ...(filters.dateTo && { dateTo: filters.dateTo }),
-    ...(filters.search && { search: filters.search }),
-    ...(filters.tags && filters.tags.length > 0 && { tags: filters.tags }),
-    ...(filters.deleted !== undefined && { deleted: filters.deleted }),
-  };
+  // Dialog states
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedTaskType, setSelectedTaskType] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
 
-  const { data, error, isLoading, isError, refetch } =
+  // Build query params
+  const queryParams = useMemo(
+    () => ({
+      ...Object.fromEntries(
+        Object.entries(filters).filter(
+          ([, v]) =>
+            v !== "" &&
+            v !== null &&
+            v !== false &&
+            !(Array.isArray(v) && v.length === 0)
+        )
+      ),
+      ...pagination,
+    }),
+    [filters, pagination]
+  );
+
+  // Fetch tasks data with error handling
+  const { data, isLoading, isError, error, refetch, isFetching } =
     useGetTasksQuery(queryParams);
 
-  useEffect(() => {
-    if (error) {
-      handleRTKError(error, "Failed to load tasks");
-    }
-  }, [error]);
+  const [deleteTask, { isLoading: isDeleting }] = useDeleteTaskMutation();
+  const [restoreTask, { isLoading: isRestoring }] = useRestoreTaskMutation();
 
-  // Show RouteError for API errors
-  if (isError) {
+  const tasks = data?.tasks || [];
+  const totalTasks = data?.pagination?.totalCount || 0;
+  const totalPages = data?.pagination?.totalPages || 1;
+
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleFilterChange = useCallback(
+    (field, value) => {
+      dispatch(setFilters({ [field]: value }));
+    },
+    [dispatch]
+  );
+
+  const handleClearFilters = useCallback(() => {
+    dispatch(clearFilters());
+  }, [dispatch]);
+
+  const handlePaginationChange = useCallback(
+    (_e, page) => {
+      dispatch(setPage(page));
+    },
+    [dispatch]
+  );
+
+  // Retry handler for error state
+  const handleRetry = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  // CRUD handlers with optimization
+  const handleCreateMenuOpen = useCallback((event) => {
+    setCreateMenuAnchor(event.currentTarget);
+  }, []);
+
+  const handleCreateMenuClose = useCallback(() => {
+    setCreateMenuAnchor(null);
+  }, []);
+
+  const handleCreateTask = useCallback((taskType) => {
+    setSelectedTask(null);
+    setSelectedTaskType(taskType);
+    setCreateDialogOpen(true);
+    setCreateMenuAnchor(null);
+  }, []);
+
+  const handleView = useCallback((task) => {
+    // Navigate to task detail page (to be implemented in Phase 12)
+    console.log("View task:", task);
+    toast.info("Task detail page coming soon!");
+  }, []);
+
+  const handleEdit = useCallback((task) => {
+    setSelectedTask(task);
+    setSelectedTaskType(task.taskType || task.__t);
+    setEditDialogOpen(true);
+  }, []);
+
+  const handleDelete = useCallback((task) => {
+    setSelectedTask(task);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleRestore = useCallback((task) => {
+    setSelectedTask(task);
+    setRestoreConfirmOpen(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    try {
+      await deleteTask(selectedTask._id).unwrap();
+      toast.success("Task deleted successfully");
+      setDeleteConfirmOpen(false);
+      setSelectedTask(null);
+    } catch (error) {
+      handleRTKError(error, "Failed to delete task");
+    }
+  }, [deleteTask, selectedTask]);
+
+  const confirmRestore = useCallback(async () => {
+    try {
+      await restoreTask(selectedTask._id).unwrap();
+      toast.success("Task restored successfully");
+      setRestoreConfirmOpen(false);
+      setSelectedTask(null);
+    } catch (error) {
+      handleRTKError(error, "Failed to restore task");
+    }
+  }, [restoreTask, selectedTask]);
+
+  // Success handler for form submission (will be used when forms are implemented)
+  // const handleSuccess = useCallback(() => {
+  //   setCreateDialogOpen(false);
+  //   setEditDialogOpen(false);
+  //   setSelectedTask(null);
+  //   setSelectedTaskType("");
+  // }, []);
+
+  // Count active filters for badge
+  const activeFiltersCount = useMemo(() => {
+    return Object.values(filters).filter(
+      (value) =>
+        value !== "" &&
+        value !== null &&
+        value !== false &&
+        !(Array.isArray(value) && value.length === 0)
+    ).length;
+  }, [filters]);
+
+  // Task type options for create menu
+  const taskTypeOptions = useMemo(
+    () => [
+      {
+        type: "AssignedTask",
+        label: "Assigned Task",
+        icon: <AssignmentIcon />,
+        description: "Task assigned to specific users",
+      },
+      {
+        type: "ProjectTask",
+        label: "Project Task",
+        icon: <BusinessIcon />,
+        description: "Task for external vendors",
+      },
+      {
+        type: "RoutineTask",
+        label: "Routine Task",
+        icon: <InventoryIcon />,
+        description: "Task with material usage",
+      },
+    ],
+    []
+  );
+
+  // Show loading state on initial load
+  if (isLoading && !data) {
+    return <LoadingFallback message="Loading tasks..." height="100%" />;
+  }
+
+  // Show error state with retry option
+  if (isError && !data) {
     return (
       <RouteError
         error={error}
         isError={isError}
         isLoading={isLoading}
-        onRetry={refetch}
+        onRetry={handleRetry}
       />
     );
   }
 
-  // Show loading state
-  if (isLoading) {
-    return <LoadingFallback message="Loading tasks..." height="100%" />;
-  }
+  return (
+    <Box>
+      {/* Header */}
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        spacing={1}
+        mb={2}
+      >
+        <Typography variant="h5" fontWeight={600}>
+          Tasks
+        </Typography>
 
-  return <Box>Tasks</Box>;
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          {/* Filter Button */}
+          <Tooltip title="Filter">
+            <IconButton
+              onClick={() => setFilterOpen(true)}
+              color="primary"
+              sx={{ border: "none" }}
+            >
+              <Badge badgeContent={activeFiltersCount} color="error">
+                <FilterListIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+
+          {activeFiltersCount > 0 && (
+            <Button size="small" onClick={handleClearFilters}>
+              Clear Filters
+            </Button>
+          )}
+
+          {/* Create Button */}
+          <Button
+            startIcon={<AddIcon />}
+            endIcon={<ExpandMoreIcon />}
+            onClick={handleCreateMenuOpen}
+            size="small"
+            sx={(theme) => ({
+              bgcolor: (theme.vars || theme).palette.success.main,
+            })}
+          >
+            Create Task
+          </Button>
+        </Box>
+      </Stack>
+
+      {/* Content */}
+      {totalTasks === 0 ? (
+        <Paper sx={{ p: 4, textAlign: "center" }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No tasks found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {activeFiltersCount > 0
+              ? "Try adjusting your filters to see more results."
+              : "Get started by creating your first task."}
+          </Typography>
+          <Button
+            startIcon={<AddIcon />}
+            endIcon={<ExpandMoreIcon />}
+            onClick={handleCreateMenuOpen}
+            sx={(theme) => ({
+              bgcolor: (theme.vars || theme).palette.success.main,
+            })}
+          >
+            Create First Task
+          </Button>
+        </Paper>
+      ) : (
+        <TasksList
+          tasks={tasks}
+          pagination={{ page: pagination.page, totalPages }}
+          onPageChange={handlePaginationChange}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onRestore={handleRestore}
+          isFetching={isFetching}
+        />
+      )}
+
+      {/* Create Task Type Menu */}
+      <Menu
+        anchorEl={createMenuAnchor}
+        open={Boolean(createMenuAnchor)}
+        onClose={handleCreateMenuClose}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+      >
+        {taskTypeOptions.map((option) => (
+          <MenuItem
+            key={option.type}
+            onClick={() => handleCreateTask(option.type)}
+            sx={{ minWidth: 250 }}
+          >
+            <ListItemIcon>{option.icon}</ListItemIcon>
+            <ListItemText
+              primary={option.label}
+              secondary={option.description}
+            />
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {/* Filter Modal */}
+      <MuiDialog
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title="Filter Tasks"
+        maxWidth="sm"
+        actions={
+          <>
+            <Button onClick={handleClearFilters}>Clear All</Button>
+            <Button variant="contained" onClick={() => setFilterOpen(false)}>
+              Apply
+            </Button>
+          </>
+        }
+      >
+        <TaskFilter filters={filters} onFilterChange={handleFilterChange} />
+      </MuiDialog>
+
+      {/* Create Task Dialog */}
+      <MuiDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        title={`Create ${selectedTaskType?.replace("Task", "")} Task`}
+        maxWidth="md"
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Task creation form will be implemented in the next phase.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Selected type: {selectedTaskType}
+          </Typography>
+        </Box>
+      </MuiDialog>
+
+      {/* Edit Task Dialog */}
+      <MuiDialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        title={`Edit ${selectedTaskType?.replace("Task", "")} Task`}
+        maxWidth="md"
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Task editing form will be implemented in the next phase.
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Editing: {selectedTask?.title}
+          </Typography>
+        </Box>
+      </MuiDialog>
+
+      {/* Delete Confirmation */}
+      <MuiDialogConfirm
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${selectedTask?.title}"? This action can be undone later.`}
+        confirmText="Delete"
+        severity="error"
+        loading={isDeleting}
+      />
+
+      {/* Restore Confirmation */}
+      <MuiDialogConfirm
+        open={restoreConfirmOpen}
+        onClose={() => setRestoreConfirmOpen(false)}
+        onConfirm={confirmRestore}
+        title="Restore Task"
+        message={`Are you sure you want to restore "${selectedTask?.title}"?`}
+        confirmText="Restore"
+        severity="info"
+        loading={isRestoring}
+      />
+    </Box>
+  );
 };
 
 export default Tasks;

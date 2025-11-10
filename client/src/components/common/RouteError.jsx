@@ -21,10 +21,12 @@ import {
   isNetworkError,
 } from "../../utils/errorHandler";
 import { useAuth } from "../../hooks/useAuth";
+import { ROUTES, UI_MESSAGES } from "../../utils/constants.js";
 
 const RouteError = ({ error, isError, isLoading, onRetry }) => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  console.log("isLoading", isLoading);
 
   if (isLoading) {
     return (
@@ -67,11 +69,11 @@ const RouteError = ({ error, isError, isLoading, onRetry }) => {
   };
 
   const handleGoHome = () => {
-    navigate("/");
+    navigate(ROUTES.HOME);
   };
 
   const handleGoToLogin = () => {
-    navigate("/login");
+    navigate(ROUTES.LOGIN);
   };
 
   const isAuth = isAuthError(appError);
@@ -113,7 +115,9 @@ const RouteError = ({ error, isError, isLoading, onRetry }) => {
             color="text.primary"
             fontWeight={600}
           >
-            {isAuth ? "Authentication Required" : "Unable to Load Content"}
+            {isAuth
+              ? UI_MESSAGES.ERRORS.AUTHENTICATION_REQUIRED
+              : UI_MESSAGES.ERRORS.UNABLE_TO_LOAD}
           </Typography>
 
           <Alert
@@ -122,9 +126,9 @@ const RouteError = ({ error, isError, isLoading, onRetry }) => {
           >
             <Typography variant="body2">
               {isAuth
-                ? "Your session has expired. Please log in again."
+                ? UI_MESSAGES.ERRORS.SESSION_EXPIRED
                 : isNetwork
-                ? "Network connection issue. Please check your internet."
+                ? UI_MESSAGES.ERRORS.NETWORK_ERROR
                 : "Failed to load the requested content."}
             </Typography>
           </Alert>
@@ -137,7 +141,7 @@ const RouteError = ({ error, isError, isLoading, onRetry }) => {
                 onClick={handleGoToLogin}
                 size="large"
               >
-                Go to Login
+                {UI_MESSAGES.ACTIONS.GO_TO_LOGIN}
               </Button>
             ) : (
               <>
@@ -148,7 +152,7 @@ const RouteError = ({ error, isError, isLoading, onRetry }) => {
                   onClick={handleRetry}
                   size="large"
                 >
-                  Try Again
+                  {UI_MESSAGES.ACTIONS.TRY_AGAIN}
                 </Button>
                 <Button
                   variant="outlined"
@@ -157,7 +161,7 @@ const RouteError = ({ error, isError, isLoading, onRetry }) => {
                   onClick={handleGoHome}
                   size="large"
                 >
-                  Go Home
+                  {UI_MESSAGES.ACTIONS.GO_HOME}
                 </Button>
               </>
             )}

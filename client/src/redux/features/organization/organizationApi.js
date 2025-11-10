@@ -41,10 +41,14 @@ export const organizationApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.ORGANIZATIONS,
         params,
       }),
+      transformResponse: (response) => ({
+        organizations: response.organizations,
+        pagination: response.pagination,
+      }),
       providesTags: (result) =>
-        result?.data
+        result?.organizations
           ? [
-              ...result.data.map(({ _id }) => ({
+              ...result.organizations.map(({ _id }) => ({
                 type: "Organization",
                 id: _id,
               })),
@@ -61,6 +65,7 @@ export const organizationApi = apiSlice.injectEndpoints({
     getOrganizationById: builder.query({
       query: (organizationId) =>
         `${API_ENDPOINTS.ORGANIZATIONS}/${organizationId}`,
+      transformResponse: (response) => response.organization,
       providesTags: (result, error, id) => [{ type: "Organization", id }],
     }),
 
@@ -68,11 +73,12 @@ export const organizationApi = apiSlice.injectEndpoints({
      * Create new organization
      * @param {Object} data - Organization data
      * @param {string} data.name - Organization name
+     * @param {string} data.description - Organization description
      * @param {string} data.email - Organization email
      * @param {string} data.phone - Organization phone
      * @param {string} data.address - Organization address
      * @param {string} data.industry - Organization industry
-     * @param {string} data.logoUrl - Organization logo URL
+     * @param {Object} data.logoUrl - Organization logo URL object with url and publicId
      * @returns {Object} Created organization
      */
     createOrganization: builder.mutation({
@@ -81,6 +87,7 @@ export const organizationApi = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      transformResponse: (response) => response.organization,
       invalidatesTags: [{ type: "Organization", id: "LIST" }],
     }),
 
@@ -88,15 +95,22 @@ export const organizationApi = apiSlice.injectEndpoints({
      * Update organization
      * @param {Object} params - Update parameters
      * @param {string} params.organizationId - Organization ID
-     * @param {Object} params.data - Updated organization data
+     * @param {string} params.name - Updated organization name (optional)
+     * @param {string} params.description - Updated organization description (optional)
+     * @param {string} params.email - Updated organization email (optional)
+     * @param {string} params.phone - Updated organization phone (optional)
+     * @param {string} params.address - Updated organization address (optional)
+     * @param {string} params.industry - Updated organization industry (optional)
+     * @param {Object} params.logoUrl - Updated organization logo URL object (optional)
      * @returns {Object} Updated organization
      */
     updateOrganization: builder.mutation({
       query: ({ organizationId, ...data }) => ({
         url: `${API_ENDPOINTS.ORGANIZATIONS}/${organizationId}`,
-        method: "PATCH",
+        method: "PUT",
         body: data,
       }),
+      transformResponse: (response) => response.organization,
       invalidatesTags: (result, error, { organizationId }) => [
         { type: "Organization", id: organizationId },
         { type: "Organization", id: "LIST" },
@@ -104,7 +118,7 @@ export const organizationApi = apiSlice.injectEndpoints({
     }),
 
     /**
-     * Soft delete organization
+     * Soft delete organization with full cascade deletion
      * @param {string} organizationId - Organization ID
      * @returns {Object} Deletion confirmation
      */
@@ -113,11 +127,16 @@ export const organizationApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.ORGANIZATIONS}/${organizationId}`,
         method: "DELETE",
       }),
+      transformResponse: (response) => response.organization,
       invalidatesTags: (result, error, organizationId) => [
         { type: "Organization", id: organizationId },
         { type: "Organization", id: "LIST" },
         { type: "Department", id: "LIST" },
         { type: "User", id: "LIST" },
+        { type: "Task", id: "LIST" },
+        { type: "Material", id: "LIST" },
+        { type: "Vendor", id: "LIST" },
+        { type: "Notification", id: "LIST" },
       ],
     }),
 
@@ -129,27 +148,12 @@ export const organizationApi = apiSlice.injectEndpoints({
     restoreOrganization: builder.mutation({
       query: (organizationId) => ({
         url: `${API_ENDPOINTS.ORGANIZATIONS}/${organizationId}/restore`,
-        method: "PATCH",
+        method: "POST",
       }),
+      transformResponse: (response) => response.organization,
       invalidatesTags: (result, error, organizationId) => [
         { type: "Organization", id: organizationId },
         { type: "Organization", id: "LIST" },
-      ],
-    }),
-
-    /**
-     * Get organization dashboard with statistics
-     * @param {string} organizationId - Organization ID
-     * @returns {Object} Organization dashboard data with stats
-     */
-    getOrganizationDashboard: builder.query({
-      query: (organizationId) =>
-        `${API_ENDPOINTS.ORGANIZATIONS}/${organizationId}/dashboard`,
-      providesTags: (result, error, id) => [
-        { type: "Organization", id },
-        { type: "Department", id: "LIST" },
-        { type: "User", id: "LIST" },
-        { type: "Task", id: "LIST" },
       ],
     }),
   }),
@@ -163,5 +167,4 @@ export const {
   useUpdateOrganizationMutation,
   useDeleteOrganizationMutation,
   useRestoreOrganizationMutation,
-  useGetOrganizationDashboardQuery,
 } = organizationApi;

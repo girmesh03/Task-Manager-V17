@@ -25,10 +25,10 @@ export const attachmentApi = apiSlice.injectEndpoints({
      * Get all attachments with pagination and filters
      * @param {Object} params - Query parameters
      * @param {number} params.page - Page number (default: 1)
-     * @param {number} params.limit - Items per page (default: 10)
-     * @param {string} params.parentId - Filter by parent entity ID
+     * @param {number} params.limit - Items per page (default: 20)
+     * @param {string} params.type - Filter by attachment type
      * @param {string} params.parentModel - Filter by parent model type
-     * @param {boolean} params.deleted - Include deleted attachments
+     * @param {string} params.parent - Filter by parent entity ID
      * @param {string} params.sortBy - Sort field (default: createdAt)
      * @param {string} params.sortOrder - Sort order: asc/desc (default: desc)
      * @returns {Object} Paginated attachments list
@@ -38,10 +38,14 @@ export const attachmentApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.ATTACHMENTS,
         params,
       }),
+      transformResponse: (response) => ({
+        attachments: response.attachments,
+        pagination: response.pagination,
+      }),
       providesTags: (result) =>
-        result?.data
+        result?.attachments
           ? [
-              ...result.data.map(({ _id }) => ({
+              ...result.attachments.map(({ _id }) => ({
                 type: "Attachment",
                 id: _id,
               })),
@@ -57,6 +61,7 @@ export const attachmentApi = apiSlice.injectEndpoints({
      */
     getAttachmentById: builder.query({
       query: (attachmentId) => `${API_ENDPOINTS.ATTACHMENTS}/${attachmentId}`,
+      transformResponse: (response) => response.attachment,
       providesTags: (result, error, id) => [{ type: "Attachment", id }],
     }),
 
@@ -67,10 +72,12 @@ export const attachmentApi = apiSlice.injectEndpoints({
      * @param {string} data.storedName - Stored file name
      * @param {string} data.mimeType - File MIME type
      * @param {number} data.size - File size in bytes
+     * @param {string} data.type - Attachment type (image, video, document, audio, other)
      * @param {string} data.url - File URL (Cloudinary)
      * @param {string} data.publicId - Cloudinary public ID
      * @param {string} data.parent - Parent entity ID
-     * @param {string} data.parentModel - Parent model type (BaseTask, TaskActivity, TaskComment)
+     * @param {string} data.parentModel - Parent model type (RoutineTask, AssignedTask, ProjectTask, TaskActivity, TaskComment)
+     * @param {string} data.format - File format (optional)
      * @param {number} data.width - Image width (optional)
      * @param {number} data.height - Image height (optional)
      * @returns {Object} Created attachment
@@ -80,14 +87,14 @@ export const attachmentApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.ATTACHMENTS,
         method: "POST",
         body: data,
-        // Note: For actual file uploads, you may need to use FormData
-        // and set Content-Type to multipart/form-data
-        // This depends on your backend implementation
       }),
+      transformResponse: (response) => response.attachment,
       invalidatesTags: (result, error, data) => [
         { type: "Attachment", id: "LIST" },
         // Invalidate parent entity cache
-        ...(data.parentModel === "BaseTask"
+        ...(["RoutineTask", "AssignedTask", "ProjectTask"].includes(
+          data.parentModel
+        )
           ? [{ type: "Task", id: data.parent }]
           : []),
         ...(data.parentModel === "TaskActivity"
@@ -115,7 +122,29 @@ export const attachmentApi = apiSlice.injectEndpoints({
           return headers;
         },
       }),
+      transformResponse: (response) => response.attachment,
       invalidatesTags: [{ type: "Attachment", id: "LIST" }],
+    }),
+
+    /**
+     * Update attachment metadata
+     * @param {Object} params - Update parameters
+     * @param {string} params.attachmentId - Attachment ID
+     * @param {string} params.originalName - Updated original name (optional)
+     * @param {string} params.storedName - Updated stored name (optional)
+     * @returns {Object} Updated attachment
+     */
+    updateAttachment: builder.mutation({
+      query: ({ attachmentId, ...data }) => ({
+        url: `${API_ENDPOINTS.ATTACHMENTS}/${attachmentId}`,
+        method: "PATCH",
+        body: data,
+      }),
+      transformResponse: (response) => response.attachment,
+      invalidatesTags: (result, error, { attachmentId }) => [
+        { type: "Attachment", id: attachmentId },
+        { type: "Attachment", id: "LIST" },
+      ],
     }),
 
     /**
@@ -128,6 +157,7 @@ export const attachmentApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.ATTACHMENTS}/${attachmentId}`,
         method: "DELETE",
       }),
+      transformResponse: (response) => response.attachment,
       invalidatesTags: (result, error, attachmentId) => [
         { type: "Attachment", id: attachmentId },
         { type: "Attachment", id: "LIST" },
@@ -142,5 +172,6 @@ export const {
   useGetAttachmentByIdQuery,
   useCreateAttachmentMutation,
   useUploadAttachmentMutation,
+  useUpdateAttachmentMutation,
   useDeleteAttachmentMutation,
 } = attachmentApi;

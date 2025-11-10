@@ -3,6 +3,7 @@ import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { clearCredentials } from "./authSlice";
 import { apiSlice } from "../api";
+import { API_ENDPOINTS } from "../../../utils/constants";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -19,7 +20,7 @@ export const loginUser = createAsyncThunk(
   "auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post("/auth/login", credentials);
+      const response = await axiosInstance.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
       // console.log("thunks response", response.data);
       return response.data;
     } catch (error) {
@@ -82,7 +83,7 @@ export const registerUser = createAsyncThunk(
   async (organizationData, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
-        "/auth/register",
+        API_ENDPOINTS.AUTH.REGISTER,
         organizationData
       );
       return response.data;
@@ -108,7 +109,7 @@ export const forgotPassword = createAsyncThunk(
   "auth/forgotPassword",
   async (email, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post("/auth/forgot-password", email);
+      const response = await axiosInstance.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, email);
       return response.data;
     } catch (error) {
       // Return full error object from backend with HTTP status code
@@ -133,7 +134,7 @@ export const resetPassword = createAsyncThunk(
   async (resetData, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
-        "/auth/reset-password",
+        API_ENDPOINTS.AUTH.RESET_PASSWORD,
         resetData
       );
       return response.data;
@@ -159,7 +160,7 @@ export const refreshToken = createAsyncThunk(
   "auth/refreshToken",
   async (_, { rejectWithValue, dispatch }) => {
     try {
-      const response = await axiosInstance.get("/auth/refresh-token");
+      const response = await axiosInstance.get(API_ENDPOINTS.AUTH.REFRESH_TOKEN);
       return response.data;
     } catch (error) {
       // If refresh fails, logout user

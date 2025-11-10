@@ -72,13 +72,11 @@ const ForgotPassword = () => {
     handleSubmit: handleSubmitReset,
     formState: { isDirty: resetIsDirty, isValid: resetIsValid },
     setFocus: setResetFocus,
-    watch,
+    getValues,
   } = useForm({
     mode: "onChange",
     defaultValues: { newPassword: "", confirmPassword: "" },
   });
-
-  const newPassword = watch("newPassword");
 
   // Focus management
   useEffect(() => {
@@ -361,7 +359,8 @@ const ForgotPassword = () => {
                   message: "confirm password must be at least 8 characters",
                 },
                 validate: (value) =>
-                  value === newPassword || "Passwords do not match",
+                  value === getValues("newPassword") ||
+                  "Passwords do not match",
               })}
               label="Confirm New Password"
               type={showConfirmPassword ? "text" : "password"}

@@ -94,7 +94,7 @@ export const getAllNotifications = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    notifications: result.docs,
   });
 });
 
@@ -174,7 +174,7 @@ export const markNotificationRead = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Notification marked as read",
-      data: updated,
+      notification: updated,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -211,6 +211,6 @@ export const getUnreadCount = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Unread notification count fetched successfully",
-    data: { count },
+    notification: { count },
   });
 });

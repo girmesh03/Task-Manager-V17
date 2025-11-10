@@ -29,8 +29,11 @@ export const materialApi = apiSlice.injectEndpoints({
      * @param {number} params.page - Page number (default: 1)
      * @param {number} params.limit - Items per page (default: 10)
      * @param {string} params.search - Search term for name
-     * @param {boolean} params.deleted - Include deleted materials
      * @param {string} params.category - Filter by category
+     * @param {string} params.departmentId - Filter by department
+     * @param {boolean} params.deleted - Include deleted materials
+     * @param {number} params.priceMin - Minimum price filter
+     * @param {number} params.priceMax - Maximum price filter
      * @param {string} params.sortBy - Sort field (default: createdAt)
      * @param {string} params.sortOrder - Sort order: asc/desc (default: desc)
      * @returns {Object} Paginated materials list
@@ -40,23 +43,40 @@ export const materialApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.MATERIALS,
         params,
       }),
+      transformResponse: (response) => ({
+        materials: response.materials,
+        pagination: response.pagination,
+      }),
       providesTags: (result) =>
-        result?.data
+        result?.materials
           ? [
-              ...result.data.map(({ _id }) => ({ type: "Material", id: _id })),
+              ...result.materials.map(({ _id }) => ({
+                type: "Material",
+                id: _id,
+              })),
               { type: "Material", id: "LIST" },
             ]
           : [{ type: "Material", id: "LIST" }],
     }),
 
     /**
-     * Get single material by ID
-     * @param {string} materialId - Material ID
-     * @returns {Object} Material details with usage statistics
+     * Get single material by ID with optional usage details
+     * @param {Object} params - Query parameters
+     * @param {string} params.materialId - Material ID
+     * @param {boolean} params.includeUsage - Include usage statistics
+     * @param {boolean} params.includeTasks - Include recent tasks
+     * @param {boolean} params.includeActivities - Include recent activities
+     * @returns {Object} Material details with optional usage statistics
      */
     getMaterialById: builder.query({
-      query: (materialId) => `${API_ENDPOINTS.MATERIALS}/${materialId}`,
-      providesTags: (result, error, id) => [{ type: "Material", id }],
+      query: ({ materialId, ...params }) => ({
+        url: `${API_ENDPOINTS.MATERIALS}/${materialId}`,
+        params,
+      }),
+      transformResponse: (response) => response.material,
+      providesTags: (result, error, { materialId }) => [
+        { type: "Material", id: materialId },
+      ],
     }),
 
     /**
@@ -74,6 +94,7 @@ export const materialApi = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      transformResponse: (response) => response.material,
       invalidatesTags: [{ type: "Material", id: "LIST" }],
     }),
 
@@ -81,15 +102,19 @@ export const materialApi = apiSlice.injectEndpoints({
      * Update material
      * @param {Object} params - Update parameters
      * @param {string} params.materialId - Material ID
-     * @param {Object} params.data - Updated material data
+     * @param {string} params.name - Updated material name (optional)
+     * @param {string} params.unit - Updated unit of measurement (optional)
+     * @param {number} params.price - Updated price per unit (optional)
+     * @param {string} params.category - Updated material category (optional)
      * @returns {Object} Updated material
      */
     updateMaterial: builder.mutation({
       query: ({ materialId, ...data }) => ({
         url: `${API_ENDPOINTS.MATERIALS}/${materialId}`,
-        method: "PATCH",
+        method: "PUT",
         body: data,
       }),
+      transformResponse: (response) => response.material,
       invalidatesTags: (result, error, { materialId }) => [
         { type: "Material", id: materialId },
         { type: "Material", id: "LIST" },
@@ -97,7 +122,7 @@ export const materialApi = apiSlice.injectEndpoints({
     }),
 
     /**
-     * Soft delete material with unlinking from tasks
+     * Soft delete material with unlinking from all tasks and activities
      * @param {string} materialId - Material ID
      * @returns {Object} Deletion confirmation
      */
@@ -106,6 +131,7 @@ export const materialApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.MATERIALS}/${materialId}`,
         method: "DELETE",
       }),
+      transformResponse: (response) => response.material,
       invalidatesTags: (result, error, materialId) => [
         { type: "Material", id: materialId },
         { type: "Material", id: "LIST" },
@@ -115,15 +141,16 @@ export const materialApi = apiSlice.injectEndpoints({
     }),
 
     /**
-     * Restore soft-deleted material with relinking to tasks
+     * Restore soft-deleted material with relinking to all tasks and activities
      * @param {string} materialId - Material ID
      * @returns {Object} Restored material
      */
     restoreMaterial: builder.mutation({
       query: (materialId) => ({
         url: `${API_ENDPOINTS.MATERIALS}/${materialId}/restore`,
-        method: "PATCH",
+        method: "POST",
       }),
+      transformResponse: (response) => response.material,
       invalidatesTags: (result, error, materialId) => [
         { type: "Material", id: materialId },
         { type: "Material", id: "LIST" },

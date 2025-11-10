@@ -69,7 +69,7 @@ export const createDepartment = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Department created successfully",
-      data: created,
+      department: created,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -134,7 +134,7 @@ export const getAllDepartments = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    departments: result.docs,
   });
 });
 
@@ -241,7 +241,7 @@ export const getDepartment = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Department fetched successfully",
-    data: {
+    department: {
       ...department,
       users,
       stats: { tasks: tasksByStatus },
@@ -338,7 +338,7 @@ export const updateDepartment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Department updated successfully",
-      data: updated,
+      department: updated,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -396,7 +396,7 @@ export const deleteDepartment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Department soft-deleted successfully",
-      data: { departmentId, deletedAt: new Date().toISOString() },
+      department: { departmentId, deletedAt: new Date().toISOString() },
     });
   } catch (err) {
     await session.abortTransaction();
@@ -479,7 +479,7 @@ export const restoreDepartment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Department restored successfully",
-      data: restored,
+      department: restored,
     });
   } catch (err) {
     await session.abortTransaction();

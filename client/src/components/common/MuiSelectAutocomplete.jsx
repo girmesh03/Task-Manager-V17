@@ -2,6 +2,7 @@
 import PropTypes from "prop-types";
 import { Controller } from "react-hook-form";
 import { Autocomplete, TextField, InputAdornment } from "@mui/material";
+import { UI_MESSAGES } from "../../utils/constants.js";
 
 const MuiSelectAutocomplete = ({
   name,
@@ -10,7 +11,7 @@ const MuiSelectAutocomplete = ({
   options = [],
   label,
   required,
-  placeholder = "Select an option",
+  placeholder = UI_MESSAGES.PLACEHOLDERS.SELECT_OPTION,
   startAdornment,
   ...muiProps
 }) => {

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { useForm, FormProvider } from "react-hook-form";
 import { toast } from "react-toastify";
 import { handleRTKError } from "../../../utils/errorHandler";
+import { ROUTES, UI_MESSAGES } from "../../../utils/constants.js";
 import {
   Button,
   Box,
@@ -113,19 +114,14 @@ function ColorlibStepIcon(props) {
 const RegisterForm = () => {
   const [activeStep, setActiveStep] = useState(1); // Start from step 1
   const navigate = useNavigate();
-  const {
-    isAuthenticated,
-    isLoading,
-    error,
-    register: registerUser,
-  } = useAuth();
+  const { isAuthenticated, isLoading, register: registerUser } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // Redirect if user is already authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      navigate("/dashboard", { replace: true });
+      navigate(ROUTES.DASHBOARD, { replace: true });
     }
   }, [isAuthenticated, isLoading, navigate]);
 
@@ -233,7 +229,7 @@ const RegisterForm = () => {
       toast.success(
         "Organization registered successfully! Please login to continue."
       );
-      navigate("/login", { replace: true });
+      navigate(ROUTES.LOGIN, { replace: true });
     } catch (err) {
       // Use global error handler for consistent error handling
       handleRTKError(

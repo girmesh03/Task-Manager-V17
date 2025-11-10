@@ -68,7 +68,7 @@ export const createVendor = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Vendor created successfully",
-      data: vendor,
+      vendor: vendor,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -131,7 +131,7 @@ export const getAllVendors = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    vendors: result.docs,
   });
 });
 
@@ -208,7 +208,7 @@ export const getVendor = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Vendor fetched successfully",
-    data: {
+    vendor: {
       ...vendor,
       projects: tasks,
       stats,
@@ -300,7 +300,7 @@ export const updateVendor = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Vendor updated successfully",
-      data: updated,
+      vendor: updated,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -357,7 +357,7 @@ export const deleteVendor = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Vendor soft-deleted successfully",
-      data: {
+      vendor: {
         vendorId,
         reassignToVendorId: reassignToVendorId || null,
         deletedAt: new Date().toISOString(),
@@ -440,7 +440,7 @@ export const restoreVendor = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Vendor restored successfully",
-      data: restored,
+      vendor: restored,
     });
   } catch (err) {
     await session.abortTransaction();

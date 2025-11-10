@@ -1,6 +1,8 @@
 // client/src/redux/features/api.js
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { clearCredentials, setCredentials } from "./auth/authSlice";
+import { setCredentials } from "./auth/authSlice";
+import { handleAuthError, isAuthError } from "../../utils/errorHandler";
+import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -18,6 +20,7 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
 
+  // Handle 401 Unauthorized - Token expired, try to refresh
   if (result.error && result.error.status === 401) {
     console.log("Received 401 - attempting token refresh");
 
@@ -29,17 +32,33 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
     );
 
     if (refreshResult.data) {
-      // Update the user data
-      console.log("refreshResult.data", refreshResult.data);
+      // Token refreshed successfully
+      console.log("Token refreshed successfully");
       api.dispatch(setCredentials(refreshResult.data));
 
       // Retry the original request with new token
       result = await baseQuery(args, api, extraOptions);
-    } else {
-      // Refresh failed - logout user
-      console.log("Token refresh failed - logging out");
-      api.dispatch(clearCredentials());
+    } else if (refreshResult.error) {
+      // Refresh failed - check if it's 401 or 403
+      if (refreshResult.error.status === 401) {
+        // Refresh token also expired - logout user
+        console.log("Refresh token expired - logging out");
+        handleAuthError(refreshResult.error, "api");
+      } else if (refreshResult.error.status === 403) {
+        // Forbidden - user doesn't have permission
+        console.log("Forbidden - insufficient permissions");
+        toast.error("You don't have permission to perform this action");
+      } else {
+        // Other refresh errors - logout user
+        console.log("Token refresh failed - logging out");
+        handleAuthError(refreshResult.error, "api");
+      }
     }
+  }
+  // Handle 403 Forbidden - User doesn't have permission
+  else if (result.error && result.error.status === 403) {
+    console.log("Received 403 - insufficient permissions");
+    toast.error("You don't have permission to perform this action");
   }
 
   return result;
@@ -53,8 +72,12 @@ export const apiSlice = createApi({
     "Department",
     "User",
     "Task",
+    "TaskActivity",
+    "TaskComment",
     "Material",
     "Vendor",
+    "Notification",
+    "Attachment",
   ],
   endpoints: () => ({}),
 });

@@ -15,6 +15,7 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import { Link } from "react-router";
 import { PlatformIconLogo } from "../components/common/CustomIcons";
+import { ROUTES, UI_MESSAGES } from "../utils/constants.js";
 
 const PublicLayout = () => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -38,6 +39,7 @@ const PublicLayout = () => {
         position="fixed"
         elevation={1}
         sx={{
+          backgroundImage: "none",
           backgroundColor: "background.paper",
           color: "text.primary",
           borderBottom: 1,
@@ -68,6 +70,11 @@ const PublicLayout = () => {
                 sx={{
                   fontWeight: 700,
                   color: "primary.main",
+                  background:
+                    "linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                 }}
               >
                 TaskManager
@@ -102,17 +109,19 @@ const PublicLayout = () => {
               >
                 <MenuItem
                   component={Link}
-                  to="/login"
+                  to={ROUTES.LOGIN}
                   onClick={handleMenuClose}
+                  sx={{ fontWeight: 500 }}
                 >
                   Sign In
                 </MenuItem>
                 <MenuItem
                   component={Link}
-                  to="/register"
+                  to={ROUTES.REGISTER}
                   onClick={handleMenuClose}
+                  sx={{ fontWeight: 600, color: "primary.main" }}
                 >
-                  Sign up
+                  Get Started
                 </MenuItem>
               </Menu>
             </>
@@ -120,21 +129,37 @@ const PublicLayout = () => {
             <Box sx={{ display: "flex", gap: 1 }}>
               <Button
                 component={Link}
-                to="/login"
+                to={ROUTES.LOGIN}
                 variant="text"
                 color="primary"
                 size="small"
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 500,
+                  "&:hover": {
+                    backgroundColor: "primary.main",
+                    color: "primary.contrastText",
+                  },
+                }}
               >
                 Sign In
               </Button>
               <Button
                 component={Link}
-                to="/register"
+                to={ROUTES.REGISTER}
                 variant="contained"
                 color="primary"
                 size="small"
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  boxShadow: 2,
+                  "&:hover": {
+                    boxShadow: 4,
+                  },
+                }}
               >
-                Sign up
+                Get Started
               </Button>
             </Box>
           )}

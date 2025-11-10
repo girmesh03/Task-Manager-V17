@@ -74,7 +74,7 @@ export const createAttachment = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Attachment created successfully",
-      data: attachment,
+      attachment: attachment,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -142,7 +142,7 @@ export const getAttachment = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: attachment,
+    attachment: attachment,
   });
 });
 
@@ -217,7 +217,7 @@ export const getAllAttachments = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: attachments,
+    attachments: attachments,
     pagination: {
       total,
       page: Number(page),
@@ -292,7 +292,7 @@ export const updateAttachment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Attachment updated successfully",
-      data: attachment,
+      attachment: attachment,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -342,7 +342,7 @@ export const deleteAttachment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Attachment deleted successfully",
-      data: {
+      attachment: {
         attachmentId,
         publicId: attachment.publicId,
       },

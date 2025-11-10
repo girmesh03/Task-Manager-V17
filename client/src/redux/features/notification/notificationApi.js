@@ -40,10 +40,14 @@ export const notificationApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.NOTIFICATIONS,
         params,
       }),
+      transformResponse: (response) => ({
+        notifications: response.notifications,
+        pagination: response.pagination,
+      }),
       providesTags: (result) =>
-        result?.data
+        result?.notifications
           ? [
-              ...result.data.map(({ _id }) => ({
+              ...result.notifications.map(({ _id }) => ({
                 type: "Notification",
                 id: _id,
               })),
@@ -60,6 +64,7 @@ export const notificationApi = apiSlice.injectEndpoints({
     getNotificationById: builder.query({
       query: (notificationId) =>
         `${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}`,
+      transformResponse: (response) => response.notification,
       providesTags: (result, error, id) => [{ type: "Notification", id }],
     }),
 
@@ -73,6 +78,7 @@ export const notificationApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`,
         method: "PATCH",
       }),
+      transformResponse: (response) => response.notification,
       invalidatesTags: (result, error, notificationId) => [
         { type: "Notification", id: notificationId },
         { type: "Notification", id: "LIST" },
@@ -85,7 +91,7 @@ export const notificationApi = apiSlice.injectEndpoints({
             "getNotifications",
             undefined,
             (draft) => {
-              const notification = draft.data?.find(
+              const notification = draft.notifications?.find(
                 (n) => n._id === notificationId
               );
               if (notification) {
@@ -111,6 +117,7 @@ export const notificationApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.NOTIFICATIONS}/read-all`,
         method: "PATCH",
       }),
+      transformResponse: (response) => response.notification,
       invalidatesTags: [
         { type: "Notification", id: "LIST" },
         { type: "Notification", id: "UNREAD_COUNT" },
@@ -127,6 +134,7 @@ export const notificationApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}`,
         method: "DELETE",
       }),
+      transformResponse: (response) => response.notification,
       invalidatesTags: (result, error, notificationId) => [
         { type: "Notification", id: notificationId },
         { type: "Notification", id: "LIST" },
@@ -135,10 +143,16 @@ export const notificationApi = apiSlice.injectEndpoints({
 
     /**
      * Get count of unread notifications
+     * @param {Object} params - Query parameters
+     * @param {string} params.type - Filter by notification type (optional)
      * @returns {Object} Unread count
      */
     getUnreadCount: builder.query({
-      query: () => `${API_ENDPOINTS.NOTIFICATIONS}/unread-count`,
+      query: (params) => ({
+        url: `${API_ENDPOINTS.NOTIFICATIONS}/unread-count`,
+        params,
+      }),
+      transformResponse: (response) => response.notification,
       providesTags: [{ type: "Notification", id: "UNREAD_COUNT" }],
       // Poll for updates every 30 seconds
       pollingInterval: 30000,

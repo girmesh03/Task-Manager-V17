@@ -26,7 +26,7 @@ const MuiThemeDropDown = (props) => {
   // Persist theme mode to localStorage whenever it changes
   useEffect(() => {
     if (mode) {
-      localStorage.setItem('mui-mode', mode);
+      localStorage.setItem("mui-mode", mode);
     }
   }, [mode]);
 
@@ -69,23 +69,24 @@ const MuiThemeDropDown = (props) => {
   const themeConfigs = {
     system: {
       icon: <SettingsBrightnessIcon />,
-      label: 'System',
-      description: 'Follow system preference'
+      label: "System",
+      description: "Follow system preference",
     },
     light: {
       icon: <LightModeIcon />,
-      label: 'Light',
-      description: 'Light theme'
+      label: "Light",
+      description: "Light theme",
     },
     dark: {
       icon: <DarkModeIcon />,
-      label: 'Dark',
-      description: 'Dark theme'
-    }
+      label: "Dark",
+      description: "Dark theme",
+    },
   };
 
   // Get current theme icon
-  const currentIcon = themeConfigs[resolvedMode]?.icon || themeConfigs.system.icon;
+  const currentIcon =
+    themeConfigs[resolvedMode]?.icon || themeConfigs.system.icon;
 
   return (
     <React.Fragment>
@@ -93,14 +94,15 @@ const MuiThemeDropDown = (props) => {
         data-screenshot="toggle-mode"
         onClick={handleClick}
         disableRipple
-        size="small"
         aria-controls={open ? "theme-drop-down-menu" : undefined}
         aria-haspopup="true"
         aria-expanded={open ? "true" : undefined}
-        aria-label={`Current theme: ${themeConfigs[mode]?.label || 'System'}. Click to change theme.`}
+        aria-label={`Current theme: ${
+          themeConfigs[mode]?.label || "System"
+        }. Click to change theme.`}
         sx={(theme) => ({
           border: "none",
-          color: (theme.vars || theme).palette.text.primary,
+          color: (theme.vars || theme).palette.text.secondary,
         })}
         {...props}
       >
@@ -134,19 +136,17 @@ const MuiThemeDropDown = (props) => {
             onClick={handleMode(themeMode)}
             sx={(theme) => ({
               minHeight: 40,
-              '&.Mui-selected': {
+              "&.Mui-selected": {
                 backgroundColor: (theme.vars || theme).palette.action.selected,
               },
             })}
           >
-            <ListItemIcon sx={{ minWidth: 36 }}>
-              {config.icon}
-            </ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 36 }}>{config.icon}</ListItemIcon>
             <ListItemText
               primary={config.label}
               secondary={config.description}
-              primaryTypographyProps={{ variant: 'body2' }}
-              secondaryTypographyProps={{ variant: 'caption' }}
+              primaryTypographyProps={{ variant: "body2" }}
+              secondaryTypographyProps={{ variant: "caption" }}
             />
           </MenuItem>
         ))}

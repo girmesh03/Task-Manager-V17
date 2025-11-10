@@ -16,6 +16,7 @@ class AppError {
     statusCode,
     type,
     severity,
+    status = "error",
     context = {},
     originalError = null,
     isOperational = true,
@@ -25,6 +26,7 @@ class AppError {
     this.statusCode = statusCode;
     this.type = type;
     this.severity = severity;
+    this.status = status;
     this.context = context;
     this.originalError = originalError;
     this.isOperational = isOperational;
@@ -65,6 +67,7 @@ class AppError {
   toJSON() {
     return {
       message: this.message,
+      status: this.status,
       errorCode: this.errorCode,
       statusCode: this.statusCode,
       type: this.type,
@@ -104,6 +107,7 @@ const parseBackendError = (error) => {
       message: error.data.message || "An error occurred",
       errorCode: error.data.errorCode || ERROR_CODES.INTERNAL_SERVER_ERROR,
       statusCode: error.status,
+      status: error.data.status || "error",
       context: error.data.context || {},
       isBackendError: true,
     };
@@ -112,11 +116,12 @@ const parseBackendError = (error) => {
   // 2. Redux Thunk unwrap() error (from authApi via login().unwrap())
   // When unwrap() throws, it throws the value from rejectWithValue()
   // Structure: { success, status, message, errorCode, context } (backend response)
-  if (error?.message && error?.errorCode) {
+  if (error?.message && error?.errorCode && error?.status) {
     return {
       message: error.message,
       errorCode: error.errorCode,
       statusCode: error.statusCode || 500,
+      status: error.status || "error",
       context: error.context || {},
       isBackendError: true,
     };
@@ -131,6 +136,7 @@ const parseBackendError = (error) => {
       errorCode:
         error.response.data.errorCode || ERROR_CODES.INTERNAL_SERVER_ERROR,
       statusCode: error.response.status || 500,
+      status: error.response.data.status || "error",
       context: error.response.data.context || {},
       isBackendError: true,
     };
@@ -213,7 +219,7 @@ const parseFrontendError = (error) => {
 /**
  * Determine error severity based on error code and status
  */
-const determineErrorSeverity = (errorCode, statusCode, isBackendError) => {
+const determineErrorSeverity = (errorCode, statusCode) => {
   // Critical errors - backend 5xx and critical frontend errors
   if (statusCode >= 500) {
     return ERROR_SEVERITY.CRITICAL;
@@ -308,12 +314,11 @@ export const handleError = (error, context = {}) => {
     type: determineErrorType(parsedError.errorCode, parsedError.isBackendError),
     severity: determineErrorSeverity(
       parsedError.errorCode,
-      parsedError.statusCode,
-      parsedError.isBackendError
+      parsedError.statusCode
     ),
+    status: parsedError.status,
     context: { ...parsedError.context, ...context },
     originalError: error,
-    isOperational: parsedError.statusCode < 500 && !parsedError.isBackendError,
   });
 
   // Log error if needed
@@ -438,9 +443,38 @@ export const isErrorType = (error, errorCode) => {
  * Check if error requires authentication
  */
 export const isAuthError = (error) => {
-  return (
+  if (!error) return false;
+
+  // Check error codes
+  if (
     isErrorType(error, ERROR_CODES.AUTHENTICATION_ERROR) ||
     isErrorType(error, ERROR_CODES.AUTHORIZATION_ERROR)
+  ) {
+    return true;
+  }
+
+  // Check HTTP status codes
+  const errorMessage = error.message || error.error || "";
+  const errorStatus = error.status || error.statusCode;
+
+  if (errorStatus === 401 || errorStatus === 403) {
+    return true;
+  }
+
+  // Check for authentication-related error messages
+  const authKeywords = [
+    "authentication",
+    "unauthorized",
+    "token",
+    "expired",
+    "invalid token",
+    "no token",
+    "jwt",
+    "forbidden",
+  ];
+
+  return authKeywords.some((keyword) =>
+    errorMessage.toLowerCase().includes(keyword)
   );
 };
 
@@ -469,6 +503,41 @@ export const isFrontendError = (error) => {
   return appError.type === ERROR_TYPES.FRONTEND;
 };
 
+/**
+ * Centralized Authentication Error Handler
+ *
+ * Handles authentication errors from both Socket.IO and RTK Query.
+ * Clears credentials, disconnects socket, and redirects to login.
+ *
+ * @param {Error|Object} error - Error object
+ * @param {string} [source="unknown"] - Source of the error (socket, api, etc.)
+ */
+export const handleAuthError = (error, source = "unknown") => {
+  console.error(`Auth error from ${source}:`, error);
+
+  // Import store dynamically to avoid circular dependency
+  import("../redux/app/store").then(({ store }) => {
+    import("../redux/features/auth/authSlice").then(({ clearCredentials }) => {
+      // Clear authentication credentials
+      store.dispatch(clearCredentials());
+    });
+  });
+
+  // Disconnect socket if error is not from socket
+  if (source !== "socket") {
+    import("../services/socketService").then(({ socketService }) => {
+      if (socketService.isConnected) {
+        socketService.disconnect();
+      }
+    });
+  }
+
+  // Redirect to login page
+  setTimeout(() => {
+    window.location.href = "/login";
+  }, 100);
+};
+
 export default {
   handleError,
   displayError,
@@ -480,5 +549,6 @@ export default {
   isNetworkError,
   isValidationError,
   isFrontendError,
+  handleAuthError,
   AppError,
 };
