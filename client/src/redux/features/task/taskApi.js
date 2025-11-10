@@ -1,62 +1,122 @@
 // client/src/redux/features/task/taskApi.js
-import { apiSlice } from "../api.js";
+import { apiSlice } from "../api";
+import { API_ENDPOINTS } from "../../../utils/constants";
 
 /**
- * Task API endpoints
- * Extends the base apiSlice with task-related endpoints
- * All endpoints inherit automatic token refresh from baseQueryWithReauth
+ * Task API Slice
+ *
+ * RTK Query API slice for task-related endpoints.
+ * Provides hooks for CRUD operations on tasks, activities, and comments.
+ *
+ * Backend Reference:
+ * - Controller: backend/controllers/taskControllers.js
+ * - Validators: backend/middlewares/validators/taskValidators.js
+ *
+ * Endpoints:
+ * - getTasks: List tasks with pagination and filters
+ * - getTaskById: Get single task details
+ * - createTask: Create new task
+ * - updateTask: Update task details
+ * - deleteTask: Soft delete task
+ * - restoreTask: Restore soft-deleted task
+ * - getTaskActivities: List task activities
+ * - getTaskActivityById: Get single activity details
+ * - createTaskActivity: Create new activity
+ * - updateTaskActivity: Update activity details
+ * - deleteTaskActivity: Soft delete activity
+ * - restoreTaskActivity: Restore soft-deleted activity
+ * - getTaskComments: List task comments
+ * - getTaskCommentById: Get single comment details
+ * - createTaskComment: Create new comment
+ * - updateTaskComment: Update comment details
+ * - deleteTaskComment: Soft delete comment
+ * - restoreTaskComment: Restore soft-deleted comment
  */
 export const taskApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ============================================
-    // TASK ENDPOINTS
-    // ============================================
-
     /**
      * Get list of tasks with pagination and filtering
      * @param {Object} params - Query parameters
+     * @param {number} params.page - Page number (default: 1)
+     * @param {number} params.limit - Items per page (default: 10)
+     * @param {string} params.taskType - Filter by task type
+     * @param {string} params.status - Filter by status
+     * @param {string} params.priority - Filter by priority
+     * @param {string} params.departmentId - Filter by department
+     * @param {string} params.assigneeId - Filter by assignee
+     * @param {string} params.vendorId - Filter by vendor
+     * @param {string} params.dueDateFrom - Filter by due date from
+     * @param {string} params.dueDateTo - Filter by due date to
+     * @param {string} params.dateFrom - Filter by date from (routine tasks)
+     * @param {string} params.dateTo - Filter by date to (routine tasks)
+     * @param {string} params.search - Search term for title, description, tags
+     * @param {string} params.sortBy - Sort field (default: createdAt)
+     * @param {string} params.sortOrder - Sort order: asc/desc (default: desc)
+     * @param {boolean} params.deleted - Include deleted tasks
+     * @param {string} params.createdBy - Filter by creator
+     * @param {string} params.watcherId - Filter by watcher
+     * @param {Array} params.tags - Filter by tags
      * @returns {Object} { tasks: [], pagination: {} }
      */
     getTasks: builder.query({
       query: (params) => ({
-        url: "/tasks",
+        url: API_ENDPOINTS.TASKS,
         params,
       }),
       transformResponse: (response) => ({
-        tasks: response.data,
+        tasks: response.tasks,
         pagination: response.pagination,
       }),
       providesTags: (result) =>
         result?.tasks
           ? [
-              "Task",
-              ...result.tasks.map((task) => ({ type: "Task", id: task._id })),
+              ...result.tasks.map(({ _id }) => ({ type: "Task", id: _id })),
+              { type: "Task", id: "LIST" },
             ]
-          : ["Task"],
+          : [{ type: "Task", id: "LIST" }],
     }),
 
     /**
-     * Get single task by ID
+     * Get single task by ID with complete details including all activities, comments, attachments, assignees, vendor information, materials, and cost history
      * @param {string} taskId - Task ID
-     * @returns {Object} Task object with populated relationships
+     * @returns {Object} Comprehensive task document with activities and comments collections
      */
     getTaskById: builder.query({
-      query: (taskId) => `/tasks/${taskId}`,
+      query: (taskId) => `${API_ENDPOINTS.TASKS}/${taskId}`,
+      transformResponse: (response) => response.task,
       providesTags: (result, error, taskId) => [{ type: "Task", id: taskId }],
     }),
 
     /**
-     * Create new task
+     * Create new task of any type (RoutineTask, AssignedTask, ProjectTask) based on taskType field
      * @param {Object} taskData - Task data
-     * @returns {Object} Created task
+     * @param {string} taskData.taskType - Task type (RoutineTask, AssignedTask, ProjectTask)
+     * @param {string} taskData.title - Task title
+     * @param {string} taskData.description - Task description
+     * @param {string} taskData.status - Task status (optional)
+     * @param {string} taskData.priority - Task priority (optional)
+     * @param {Array} taskData.watcherIds - Watcher user IDs (optional)
+     * @param {Array} taskData.tags - Task tags (optional)
+     * @param {Array} taskData.attachments - Task attachments (optional)
+     * @param {Date} taskData.startDate - Start date (AssignedTask, ProjectTask)
+     * @param {Date} taskData.dueDate - Due date (AssignedTask, ProjectTask)
+     * @param {Array} taskData.assigneeIds - Assignee user IDs (AssignedTask)
+     * @param {string} taskData.vendorId - Vendor ID (ProjectTask)
+     * @param {number} taskData.estimatedCost - Estimated cost (ProjectTask)
+     * @param {number} taskData.actualCost - Actual cost (ProjectTask)
+     * @param {string} taskData.currency - Currency (ProjectTask)
+     * @param {Date} taskData.date - Task date (RoutineTask)
+     * @param {Array} taskData.materials - Materials array (RoutineTask)
+     * @returns {Object} Created task with all relationships populated
      */
     createTask: builder.mutation({
       query: (taskData) => ({
-        url: "/tasks",
+        url: API_ENDPOINTS.TASKS,
         method: "POST",
         body: taskData,
       }),
-      invalidatesTags: ["Task"],
+      transformResponse: (response) => response.task,
+      invalidatesTags: [{ type: "Task", id: "LIST" }],
     }),
 
     /**
@@ -66,13 +126,14 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     updateTask: builder.mutation({
       query: ({ taskId, ...updateData }) => ({
-        url: `/tasks/${taskId}`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}`,
         method: "PUT",
         body: updateData,
       }),
-      invalidatesTags: (result, error, arg) => [
-        "Task",
-        { type: "Task", id: arg.taskId },
+      transformResponse: (response) => response.task,
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "Task", id: taskId },
+        { type: "Task", id: "LIST" },
       ],
     }),
 
@@ -83,15 +144,17 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     deleteTask: builder.mutation({
       query: (taskId) => ({
-        url: `/tasks/${taskId}`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}`,
         method: "DELETE",
       }),
-      invalidatesTags: [
-        "Task",
-        "TaskActivity",
-        "TaskComment",
-        "Attachment",
-        "Notification",
+      transformResponse: (response) => response.task,
+      invalidatesTags: (result, error, taskId) => [
+        { type: "Task", id: taskId },
+        { type: "Task", id: "LIST" },
+        { type: "TaskActivity", id: "LIST" },
+        { type: "TaskComment", id: "LIST" },
+        { type: "Attachment", id: "LIST" },
+        { type: "Notification", id: "LIST" },
       ],
     }),
 
@@ -102,15 +165,15 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     restoreTask: builder.mutation({
       query: (taskId) => ({
-        url: `/tasks/${taskId}/restore`,
-        method: "PATCH",
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/restore`,
+        method: "POST",
       }),
-      invalidatesTags: ["Task"],
+      transformResponse: (response) => response.task,
+      invalidatesTags: (result, error, taskId) => [
+        { type: "Task", id: taskId },
+        { type: "Task", id: "LIST" },
+      ],
     }),
-
-    // ============================================
-    // TASK ACTIVITY ENDPOINTS
-    // ============================================
 
     /**
      * Get list of activities for a task
@@ -119,23 +182,23 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     getTaskActivities: builder.query({
       query: ({ taskId, ...params }) => ({
-        url: `/tasks/${taskId}/activities`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/activities`,
         params,
       }),
       transformResponse: (response) => ({
-        activities: response.data,
+        activities: response.activities,
         pagination: response.pagination,
       }),
       providesTags: (result) =>
         result?.activities
           ? [
-              "TaskActivity",
-              ...result.activities.map((activity) => ({
+              ...result.activities.map(({ _id }) => ({
                 type: "TaskActivity",
-                id: activity._id,
+                id: _id,
               })),
+              { type: "TaskActivity", id: "LIST" },
             ]
-          : ["TaskActivity"],
+          : [{ type: "TaskActivity", id: "LIST" }],
     }),
 
     /**
@@ -145,7 +208,8 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     getTaskActivityById: builder.query({
       query: ({ taskId, activityId }) =>
-        `/tasks/${taskId}/activities/${activityId}`,
+        `${API_ENDPOINTS.TASKS}/${taskId}/activities/${activityId}`,
+      transformResponse: (response) => response.activity,
       providesTags: (result, error, { activityId }) => [
         { type: "TaskActivity", id: activityId },
       ],
@@ -158,14 +222,15 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     createTaskActivity: builder.mutation({
       query: ({ taskId, ...activityData }) => ({
-        url: `/tasks/${taskId}/activities`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/activities`,
         method: "POST",
         body: activityData,
       }),
-      invalidatesTags: (result, error, arg) => [
-        "TaskActivity",
-        { type: "Task", id: arg.taskId },
-        "Material",
+      transformResponse: (response) => response.activity,
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "TaskActivity", id: "LIST" },
+        { type: "Task", id: taskId },
+        { type: "Material", id: "LIST" },
       ],
     }),
 
@@ -176,14 +241,16 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     updateTaskActivity: builder.mutation({
       query: ({ taskId, activityId, ...updateData }) => ({
-        url: `/tasks/${taskId}/activities/${activityId}`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/activities/${activityId}`,
         method: "PUT",
         body: updateData,
       }),
-      invalidatesTags: (result, error, arg) => [
-        { type: "TaskActivity", id: arg.activityId },
-        { type: "Task", id: arg.taskId },
-        "Material",
+      transformResponse: (response) => response.activity,
+      invalidatesTags: (result, error, { taskId, activityId }) => [
+        { type: "TaskActivity", id: activityId },
+        { type: "TaskActivity", id: "LIST" },
+        { type: "Task", id: taskId },
+        { type: "Material", id: "LIST" },
       ],
     }),
 
@@ -194,12 +261,14 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     deleteTaskActivity: builder.mutation({
       query: ({ taskId, activityId }) => ({
-        url: `/tasks/${taskId}/activities/${activityId}`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/activities/${activityId}`,
         method: "DELETE",
       }),
-      invalidatesTags: (result, error, arg) => [
-        "TaskActivity",
-        { type: "Task", id: arg.taskId },
+      transformResponse: (response) => response.activity,
+      invalidatesTags: (result, error, { taskId, activityId }) => [
+        { type: "TaskActivity", id: activityId },
+        { type: "TaskActivity", id: "LIST" },
+        { type: "Task", id: taskId },
       ],
     }),
 
@@ -210,18 +279,16 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     restoreTaskActivity: builder.mutation({
       query: ({ taskId, activityId }) => ({
-        url: `/tasks/${taskId}/activities/${activityId}/restore`,
-        method: "PATCH",
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/activities/${activityId}/restore`,
+        method: "POST",
       }),
-      invalidatesTags: (result, error, arg) => [
-        "TaskActivity",
-        { type: "Task", id: arg.taskId },
+      transformResponse: (response) => response.activity,
+      invalidatesTags: (result, error, { taskId, activityId }) => [
+        { type: "TaskActivity", id: activityId },
+        { type: "TaskActivity", id: "LIST" },
+        { type: "Task", id: taskId },
       ],
     }),
-
-    // ============================================
-    // TASK COMMENT ENDPOINTS
-    // ============================================
 
     /**
      * Get list of comments for a task
@@ -230,23 +297,23 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     getTaskComments: builder.query({
       query: ({ taskId, ...params }) => ({
-        url: `/tasks/${taskId}/comments`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/comments`,
         params,
       }),
       transformResponse: (response) => ({
-        comments: response.data,
+        comments: response.comments,
         pagination: response.pagination,
       }),
       providesTags: (result) =>
         result?.comments
           ? [
-              "TaskComment",
-              ...result.comments.map((comment) => ({
+              ...result.comments.map(({ _id }) => ({
                 type: "TaskComment",
-                id: comment._id,
+                id: _id,
               })),
+              { type: "TaskComment", id: "LIST" },
             ]
-          : ["TaskComment"],
+          : [{ type: "TaskComment", id: "LIST" }],
     }),
 
     /**
@@ -256,7 +323,8 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     getTaskCommentById: builder.query({
       query: ({ taskId, commentId }) =>
-        `/tasks/${taskId}/comments/${commentId}`,
+        `${API_ENDPOINTS.TASKS}/${taskId}/comments/${commentId}`,
+      transformResponse: (response) => response.comment,
       providesTags: (result, error, { commentId }) => [
         { type: "TaskComment", id: commentId },
       ],
@@ -269,15 +337,16 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     createTaskComment: builder.mutation({
       query: ({ taskId, ...commentData }) => ({
-        url: `/tasks/${taskId}/comments`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/comments`,
         method: "POST",
         body: commentData,
       }),
-      invalidatesTags: (result, error, arg) => [
-        "TaskComment",
-        { type: "Task", id: arg.taskId },
-        "User",
-        "Notification",
+      transformResponse: (response) => response.comment,
+      invalidatesTags: (result, error, { taskId }) => [
+        { type: "TaskComment", id: "LIST" },
+        { type: "Task", id: taskId },
+        { type: "User", id: "LIST" },
+        { type: "Notification", id: "LIST" },
       ],
     }),
 
@@ -288,15 +357,17 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     updateTaskComment: builder.mutation({
       query: ({ taskId, commentId, ...updateData }) => ({
-        url: `/tasks/${taskId}/comments/${commentId}`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/comments/${commentId}`,
         method: "PUT",
         body: updateData,
       }),
-      invalidatesTags: (result, error, arg) => [
-        { type: "TaskComment", id: arg.commentId },
-        { type: "Task", id: arg.taskId },
-        "User",
-        "Notification",
+      transformResponse: (response) => response.comment,
+      invalidatesTags: (result, error, { taskId, commentId }) => [
+        { type: "TaskComment", id: commentId },
+        { type: "TaskComment", id: "LIST" },
+        { type: "Task", id: taskId },
+        { type: "User", id: "LIST" },
+        { type: "Notification", id: "LIST" },
       ],
     }),
 
@@ -307,12 +378,14 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     deleteTaskComment: builder.mutation({
       query: ({ taskId, commentId }) => ({
-        url: `/tasks/${taskId}/comments/${commentId}`,
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/comments/${commentId}`,
         method: "DELETE",
       }),
-      invalidatesTags: (result, error, arg) => [
-        "TaskComment",
-        { type: "Task", id: arg.taskId },
+      transformResponse: (response) => response.comment,
+      invalidatesTags: (result, error, { taskId, commentId }) => [
+        { type: "TaskComment", id: commentId },
+        { type: "TaskComment", id: "LIST" },
+        { type: "Task", id: taskId },
       ],
     }),
 
@@ -323,12 +396,14 @@ export const taskApi = apiSlice.injectEndpoints({
      */
     restoreTaskComment: builder.mutation({
       query: ({ taskId, commentId }) => ({
-        url: `/tasks/${taskId}/comments/${commentId}/restore`,
-        method: "PATCH",
+        url: `${API_ENDPOINTS.TASKS}/${taskId}/comments/${commentId}/restore`,
+        method: "POST",
       }),
-      invalidatesTags: (result, error, arg) => [
-        "TaskComment",
-        { type: "Task", id: arg.taskId },
+      transformResponse: (response) => response.comment,
+      invalidatesTags: (result, error, { taskId, commentId }) => [
+        { type: "TaskComment", id: commentId },
+        { type: "TaskComment", id: "LIST" },
+        { type: "Task", id: taskId },
       ],
     }),
   }),

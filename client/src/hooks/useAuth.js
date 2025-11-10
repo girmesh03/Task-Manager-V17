@@ -13,6 +13,7 @@ import {
   forgotPassword,
   resetPassword,
 } from "../redux/features/auth/authApi";
+import { USER_ROLES } from "../utils/constants";
 
 /**
  * Custom hook for authentication state and utilities
@@ -37,10 +38,11 @@ export const useAuth = () => {
     user?.organization?._id === import.meta.env.VITE_PLATFORM_ORG;
 
   // Role-based utilities
-  const isSuperAdmin = user?.role === "SuperAdmin";
-  const isAdmin = user?.role === "Admin";
-  const isHod = user?.role === "SuperAdmin" || user?.role === "Admin"; // Head of Department
-  const isMember = user?.role === "User";
+  const isSuperAdmin = user?.role === USER_ROLES.SUPER_ADMIN;
+  const isAdmin = user?.role === USER_ROLES.ADMIN;
+  const isHod =
+    user?.role === USER_ROLES.SUPER_ADMIN || user?.role === USER_ROLES.ADMIN; // Head of Department
+  const isMember = user?.role === USER_ROLES.USER;
   // Route protection utilities that integrate with existing Redux state changes
   const requireAuth = () => {
     return isAuthenticated && !isLoading;

@@ -26,6 +26,7 @@ import {
   isAuthError,
 } from "../../utils/errorHandler";
 import { useAuth } from "../../hooks/useAuth";
+import { ROUTES, UI_MESSAGES } from "../../utils/constants.js";
 
 const ErrorBoundary = () => {
   const error = useRouteError();
@@ -54,7 +55,7 @@ const ErrorBoundary = () => {
   };
 
   const handleGoHome = () => {
-    window.location.href = "/";
+    window.location.href = ROUTES.HOME;
   };
 
   const handleExpand = () => {
@@ -72,14 +73,19 @@ const ErrorBoundary = () => {
   // User-friendly messages for production
   const getUserFriendlyMessage = () => {
     if (isAuth) {
-      return "Authentication error. Please log in again.";
+      return UI_MESSAGES.ERRORS.SESSION_EXPIRED;
     }
 
     if (isFrontend) {
-      return "Something went wrong. Please try refreshing the page.";
+      return (
+        UI_MESSAGES.ERRORS.SOMETHING_WENT_WRONG +
+        ". Please try refreshing the page."
+      );
     }
 
-    return "An unexpected error occurred. Please try again later.";
+    return (
+      "An unexpected error occurred. " + UI_MESSAGES.ERRORS.PLEASE_TRY_AGAIN
+    );
   };
 
   return (
@@ -121,7 +127,7 @@ const ErrorBoundary = () => {
             >
               {isDevelopment
                 ? "Application Error"
-                : "Oops! Something went wrong"}
+                : "Oops! " + UI_MESSAGES.ERRORS.SOMETHING_WENT_WRONG}
             </Typography>
 
             <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
@@ -219,7 +225,7 @@ const ErrorBoundary = () => {
               size="large"
               fullWidth={isMobile}
             >
-              Reload Page
+              {UI_MESSAGES.ACTIONS.RELOAD_PAGE}
             </Button>
 
             <Button
@@ -230,7 +236,7 @@ const ErrorBoundary = () => {
               size="large"
               fullWidth={isMobile}
             >
-              Go Home
+              {UI_MESSAGES.ACTIONS.GO_HOME}
             </Button>
           </Box>
 

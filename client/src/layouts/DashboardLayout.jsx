@@ -14,6 +14,8 @@ import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import SettingsIcon from "@mui/icons-material/Settings";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -29,7 +31,12 @@ import BusinessIcon from "@mui/icons-material/Business";
 import GroupsIcon from "@mui/icons-material/Groups";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import { useAuth } from "../hooks/useAuth";
-import { LoadingFallback } from "../components/common/MuiLoading";
+import MuiThemeDropDown from "../components/common/MuiThemeDropDown";
+import GlobalSearch from "../components/common/GlobalSearch";
+import NotificationMenu from "../components/common/NotificationMenu";
+import SearchIcon from "@mui/icons-material/Search";
+import EmailIcon from "@mui/icons-material/Email";
+import { ROUTES } from "../utils/constants.js";
 
 const drawerWidth = 240;
 
@@ -37,9 +44,23 @@ const DashboardLayout = () => {
   console.log("DashboardLayout");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, isHod, isSuperAdmin, isPlatformUser } = useAuth();
+
+  // Keyboard shortcut for global search (Ctrl+K or Cmd+K)
+  React.useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -56,7 +77,7 @@ const DashboardLayout = () => {
   const handleLogout = async () => {
     try {
       await logout().unwrap();
-      navigate("/login", { replace: true });
+      navigate(ROUTES.LOGIN, { replace: true });
     } catch (error) {
       // Use global error handler for consistent error handling
       // console.log("logout error dashboard", error);
@@ -73,9 +94,9 @@ const DashboardLayout = () => {
     sections.push({
       title: "Workspace",
       items: [
-        { text: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
-        { text: "Tasks", icon: <AssignmentIcon />, path: "/tasks" },
-        { text: "Users", icon: <PeopleIcon />, path: "/users" },
+        { text: "Dashboard", icon: <DashboardIcon />, path: ROUTES.DASHBOARD },
+        { text: "Tasks", icon: <AssignmentIcon />, path: ROUTES.TASKS },
+        { text: "Users", icon: <PeopleIcon />, path: ROUTES.USERS },
       ],
     });
 
@@ -84,8 +105,12 @@ const DashboardLayout = () => {
       sections.push({
         title: "Resources",
         items: [
-          { text: "Materials", icon: <InventoryIcon />, path: "/materials" },
-          { text: "Vendors", icon: <StoreIcon />, path: "/vendors" },
+          {
+            text: "Materials",
+            icon: <InventoryIcon />,
+            path: ROUTES.MATERIALS,
+          },
+          { text: "Vendors", icon: <StoreIcon />, path: ROUTES.VENDORS },
         ],
       });
     }
@@ -98,14 +123,14 @@ const DashboardLayout = () => {
           {
             text: "Organization",
             icon: <BusinessIcon />,
-            path: "/admin/organization",
+            path: ROUTES.ORGANIZATION,
           },
           {
             text: "Departments",
             icon: <GroupsIcon />,
-            path: "/admin/departments",
+            path: ROUTES.DEPARTMENTS,
           },
-          { text: "Users", icon: <PeopleIcon />, path: "/admin/users" },
+          { text: "Users", icon: <PeopleIcon />, path: ROUTES.ADMIN_USERS },
         ],
       });
     }
@@ -118,7 +143,7 @@ const DashboardLayout = () => {
           {
             text: "Organizations",
             icon: <CorporateFareIcon />,
-            path: "/platform/organizations",
+            path: ROUTES.PLATFORM_ORGANIZATIONS,
           },
         ],
       });
@@ -143,7 +168,7 @@ const DashboardLayout = () => {
   const handleOrganizationClick = useCallback(() => {
     // Navigate to dashboard and close drawer on mobile
     React.startTransition(() => {
-      navigate("/dashboard");
+      navigate(ROUTES.DASHBOARD);
     });
     if (mobileOpen) {
       setMobileOpen(false);
@@ -167,9 +192,14 @@ const DashboardLayout = () => {
             borderBottom: 1,
             borderColor: "divider",
             cursor: "pointer",
+            background:
+              "linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(66, 165, 245, 0.05) 100%)",
             "&:hover": {
               backgroundColor: "action.hover",
+              background:
+                "linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(66, 165, 245, 0.1) 100%)",
             },
+            transition: "all 0.2s ease-in-out",
           }}
           onClick={handleOrganizationClick}
         >
@@ -178,11 +208,14 @@ const DashboardLayout = () => {
             <Avatar
               src={user?.organization?.logoUrl?.url || ""}
               sx={{
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 bgcolor: "primary.main",
                 fontSize: "1.2rem",
                 fontWeight: 600,
+                boxShadow: 2,
+                border: 2,
+                borderColor: "background.paper",
               }}
             >
               {user?.organization?.name?.[0]?.toUpperCase() || "O"}
@@ -193,10 +226,11 @@ const DashboardLayout = () => {
               <Typography
                 variant="subtitle1"
                 sx={{
-                  fontWeight: 600,
+                  fontWeight: 700,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
+                  color: "primary.main",
                 }}
               >
                 {user?.organization?.name
@@ -206,28 +240,30 @@ const DashboardLayout = () => {
               </Typography>
               <Typography
                 variant="caption"
-                color="text.secondary"
                 sx={{
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   display: "block",
+                  color: "text.secondary",
+                  fontWeight: 500,
                 }}
               >
-                {user?.role}
+                {user?.role} • {user?.department?.name}
               </Typography>
             </Box>
           </Box>
         </Box>
 
         {/* Navigation Menu */}
-        <Box sx={{ flex: 1, overflow: "auto", pt: 2 }}>
+        <Box sx={{ flex: 1, overflow: "auto", py: 2 }}>
           {menuSections.map((section) => (
             <List
               key={section.title}
               subheader={
                 <ListSubheader
                   component="div"
+                  disableSticky
                   sx={{
                     bgcolor: "transparent",
                     fontWeight: 600,
@@ -275,9 +311,11 @@ const DashboardLayout = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary={item.text}
-                      primaryTypographyProps={{
-                        fontSize: "0.875rem",
-                        fontWeight: isActive(item.path) ? 600 : 400,
+                      slotProps={{
+                        primary: {
+                          fontSize: "0.875rem",
+                          fontWeight: isActive(item.path) ? 600 : 400,
+                        },
                       }}
                     />
                   </ListItemButton>
@@ -317,6 +355,10 @@ const DashboardLayout = () => {
         sx={{
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
+          backgroundImage: "none",
+          backgroundColor: "background.paper",
+          color: "text.primary",
+          boxShadow: 2,
         }}
       >
         <Toolbar>
@@ -325,7 +367,12 @@ const DashboardLayout = () => {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: "none" } }}
+            sx={(theme) => ({
+              mr: theme.spacing(1),
+              display: { md: "none" },
+              border: "none",
+              color: (theme.vars || theme).palette.text.secondary,
+            })}
           >
             <MenuIcon />
           </IconButton>
@@ -333,22 +380,42 @@ const DashboardLayout = () => {
             {pageTitle}
           </Typography>
 
-          {/* User Menu */}
+          {/* Right Side Actions */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* <Typography
-              variant="body2"
-              sx={{ display: { xs: "none", sm: "block" } }}
+            {/* Global Search Button */}
+            <IconButton
+              color="inherit"
+              onClick={() => setSearchOpen(true)}
+              aria-label="search"
+              sx={(theme) => ({
+                transform: "translateY(2px)",
+                border: "none",
+                color: (theme.vars || theme).palette.text.secondary,
+              })}
             >
-              {user?.fullName}
-            </Typography> */}
+              <SearchIcon />
+            </IconButton>
+
+            {/* Notification Menu */}
+            <NotificationMenu />
+
+            {/* Theme Switcher */}
+            <MuiThemeDropDown />
+
+            {/* User Avatar */}
             <IconButton
               color="inherit"
               onClick={handleUserMenuOpen}
               aria-label="user menu"
+              // size="small"
+              sx={(theme) => ({
+                border: "none",
+                color: (theme.vars || theme).palette.text.primary,
+              })}
             >
               <Avatar sx={{ width: 32, height: 32 }}>
                 {user?.firstName?.[0]}
-                {/* {user?.lastName?.[0]} */}
+                {user?.lastName?.[0]}
               </Avatar>
             </IconButton>
           </Box>
@@ -368,19 +435,91 @@ const DashboardLayout = () => {
             }}
           >
             <MenuItem disabled>
-              <Box>
-                <Typography variant="subtitle2">{user?.fullName}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {user?.email}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, py: 1 }}
+              >
+                <Avatar
+                  src={user?.profilePicture?.url || ""}
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    bgcolor: "primary.main",
+                    fontSize: "1.2rem",
+                    fontWeight: 600,
+                  }}
                 >
-                  {user?.role} • {user?.organization?.name}
-                </Typography>
+                  {user?.firstName?.[0]}
+                  {user?.lastName?.[0]}
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {user?.fullName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {user?.email}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="primary.main"
+                    display="block"
+                    fontWeight={500}
+                  >
+                    {user?.role} • {user?.department?.name}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                  >
+                    {user?.organization?.name}
+                  </Typography>
+                </Box>
               </Box>
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                handleUserMenuClose();
+                navigate("/profile");
+              }}
+            >
+              <ListItemIcon>
+                <AccountCircleIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Profile</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleUserMenuClose();
+                navigate("/account");
+              }}
+            >
+              <ListItemIcon>
+                <AccountCircleIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Account</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleUserMenuClose();
+                navigate("/email-preferences");
+              }}
+            >
+              <ListItemIcon>
+                <EmailIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Email Preferences</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleUserMenuClose();
+                navigate("/settings");
+              }}
+            >
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Settings</ListItemText>
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>
@@ -390,6 +529,12 @@ const DashboardLayout = () => {
               <ListItemText>Logout</ListItemText>
             </MenuItem>
           </Menu>
+
+          {/* Global Search Dialog */}
+          <GlobalSearch
+            open={searchOpen}
+            onClose={() => setSearchOpen(false)}
+          />
         </Toolbar>
       </AppBar>
 
@@ -448,7 +593,7 @@ const DashboardLayout = () => {
         }}
       >
         <Toolbar />
-        <Box sx={{ flex: 1, overflow: "auto", p: 1 }}>
+        <Box sx={{ flex: 1, overflow: "auto", p: { xs: 0.5, sm: 1 } }}>
           <Outlet />
         </Box>
       </Box>

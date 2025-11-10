@@ -120,7 +120,7 @@ export const createUser = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "User created successfully",
-      data: createdUser,
+      user: createdUser,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -204,7 +204,7 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
 
   const result = await query.paginate(filter, options);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Users fetched successfully",
     pagination: {
@@ -215,7 +215,7 @@ export const getAllUsers = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    users: result.docs,
   });
 });
 
@@ -279,7 +279,7 @@ export const getUser = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "User fetched successfully",
-    data: {
+    user: {
       ...user,
       assignedTasks,
       performance: {
@@ -404,7 +404,7 @@ export const updateUserBy = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "User updated successfully",
-      data: updatedUser,
+      user: updatedUser,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -508,7 +508,7 @@ export const updateMyProfile = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      data: updatedProfile,
+      user: updatedProfile,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -552,7 +552,7 @@ export const getMyAccount = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Account fetched successfully",
-    data: {
+    user: {
       _id: user._id,
       email: user.email,
       role: user.role,
@@ -628,7 +628,7 @@ export const getMyProfile = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Profile fetched successfully",
-    data: {
+    user: {
       ...user,
       skills: includeSkills ? user.skills : undefined,
       stats,
@@ -674,7 +674,7 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "User soft-deleted successfully",
-      data: { userId, deletedAt: new Date().toISOString() },
+      user: { userId, deletedAt: new Date().toISOString() },
     });
   } catch (err) {
     await session.abortTransaction();
@@ -740,7 +740,7 @@ export const restoreUser = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "User restored successfully",
-      data: restored,
+      user: restored,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -792,7 +792,7 @@ export const getEmailPreferences = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Email preferences retrieved successfully",
-    data: {
+    user: {
       userId: user._id,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -902,7 +902,7 @@ export const updateEmailPreferences = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Email preferences updated successfully",
-    data: {
+    user: {
       userId: user._id,
       emailPreferences: updatedPreferences,
     },
@@ -934,7 +934,7 @@ export const getMyEmailPreferences = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Email preferences retrieved successfully",
-    data: {
+    user: {
       userId: user._id,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -1027,7 +1027,7 @@ export const updateMyEmailPreferences = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Email preferences updated successfully",
-    data: {
+    user: {
       userId: user._id,
       emailPreferences: updatedPreferences,
     },
@@ -1181,7 +1181,7 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: `Announcement sent to ${recipients.length} users`,
-      data: {
+      notification: {
         notificationId: notification._id,
         recipientCount: recipients.length,
         targetType,

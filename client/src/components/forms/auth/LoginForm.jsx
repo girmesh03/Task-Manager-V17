@@ -1,5 +1,5 @@
 // src/components/auth/LoginForm.jsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { useForm } from "react-hook-form";
 import {
@@ -22,6 +22,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import { useAuth } from "../../../hooks/useAuth";
 import MuiTextField from "../../common/MuiTextField";
 import { handleRTKError } from "../../../utils/errorHandler";
+import { MIN_PASSWORD_LENGTH, UI_MESSAGES } from "../../../utils/constants.js";
 
 const LoginForm = () => {
   const { isLoading, error, login } = useAuth();
@@ -159,8 +160,8 @@ const LoginForm = () => {
             {...register("password", {
               required: "Password is required",
               minLength: {
-                value: 8,
-                message: "Password must be at least 8 characters",
+                value: MIN_PASSWORD_LENGTH,
+                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
               },
             })}
             error={errors.password}
@@ -194,7 +195,7 @@ const LoginForm = () => {
             <Alert severity="error" sx={{ mt: 2 }}>
               {typeof error === "string"
                 ? error
-                : error?.message || "An error occurred"}
+                : error?.message || UI_MESSAGES.ERRORS.SOMETHING_WENT_WRONG}
             </Alert>
           )}
 

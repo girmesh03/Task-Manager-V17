@@ -40,10 +40,14 @@ export const departmentApi = apiSlice.injectEndpoints({
         url: API_ENDPOINTS.DEPARTMENTS,
         params,
       }),
+      transformResponse: (response) => ({
+        departments: response.departments,
+        pagination: response.pagination,
+      }),
       providesTags: (result) =>
-        result?.data
+        result?.departments
           ? [
-              ...result.data.map(({ _id }) => ({
+              ...result.departments.map(({ _id }) => ({
                 type: "Department",
                 id: _id,
               })),
@@ -55,10 +59,11 @@ export const departmentApi = apiSlice.injectEndpoints({
     /**
      * Get single department by ID
      * @param {string} departmentId - Department ID
-     * @returns {Object} Department details
+     * @returns {Object} Department details with users, stats, recent activities, and HOD info
      */
     getDepartmentById: builder.query({
       query: (departmentId) => `${API_ENDPOINTS.DEPARTMENTS}/${departmentId}`,
+      transformResponse: (response) => response.department,
       providesTags: (result, error, id) => [{ type: "Department", id }],
     }),
 
@@ -75,6 +80,7 @@ export const departmentApi = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
+      transformResponse: (response) => response.department,
       invalidatesTags: [{ type: "Department", id: "LIST" }],
     }),
 
@@ -82,15 +88,17 @@ export const departmentApi = apiSlice.injectEndpoints({
      * Update department
      * @param {Object} params - Update parameters
      * @param {string} params.departmentId - Department ID
-     * @param {Object} params.data - Updated department data
+     * @param {string} params.name - Updated department name (optional)
+     * @param {string} params.description - Updated department description (optional)
      * @returns {Object} Updated department
      */
     updateDepartment: builder.mutation({
       query: ({ departmentId, ...data }) => ({
         url: `${API_ENDPOINTS.DEPARTMENTS}/${departmentId}`,
-        method: "PATCH",
+        method: "PUT",
         body: data,
       }),
+      transformResponse: (response) => response.department,
       invalidatesTags: (result, error, { departmentId }) => [
         { type: "Department", id: departmentId },
         { type: "Department", id: "LIST" },
@@ -98,7 +106,7 @@ export const departmentApi = apiSlice.injectEndpoints({
     }),
 
     /**
-     * Soft delete department
+     * Soft delete department with full cascade deletion
      * @param {string} departmentId - Department ID
      * @returns {Object} Deletion confirmation
      */
@@ -107,11 +115,14 @@ export const departmentApi = apiSlice.injectEndpoints({
         url: `${API_ENDPOINTS.DEPARTMENTS}/${departmentId}`,
         method: "DELETE",
       }),
+      transformResponse: (response) => response.department,
       invalidatesTags: (result, error, departmentId) => [
         { type: "Department", id: departmentId },
         { type: "Department", id: "LIST" },
         { type: "User", id: "LIST" },
         { type: "Task", id: "LIST" },
+        { type: "Material", id: "LIST" },
+        { type: "Notification", id: "LIST" },
       ],
     }),
 
@@ -123,26 +134,12 @@ export const departmentApi = apiSlice.injectEndpoints({
     restoreDepartment: builder.mutation({
       query: (departmentId) => ({
         url: `${API_ENDPOINTS.DEPARTMENTS}/${departmentId}/restore`,
-        method: "PATCH",
+        method: "POST",
       }),
+      transformResponse: (response) => response.department,
       invalidatesTags: (result, error, departmentId) => [
         { type: "Department", id: departmentId },
         { type: "Department", id: "LIST" },
-      ],
-    }),
-
-    /**
-     * Get department statistics
-     * @param {string} departmentId - Department ID
-     * @returns {Object} Department statistics (users, tasks, etc.)
-     */
-    getDepartmentStatistics: builder.query({
-      query: (departmentId) =>
-        `${API_ENDPOINTS.DEPARTMENTS}/${departmentId}/statistics`,
-      providesTags: (result, error, id) => [
-        { type: "Department", id },
-        { type: "User", id: "LIST" },
-        { type: "Task", id: "LIST" },
       ],
     }),
   }),
@@ -156,5 +153,4 @@ export const {
   useUpdateDepartmentMutation,
   useDeleteDepartmentMutation,
   useRestoreDepartmentMutation,
-  useGetDepartmentStatisticsQuery,
 } = departmentApi;

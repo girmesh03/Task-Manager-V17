@@ -306,7 +306,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Task created successfully",
-      data: populatedTask,
+      task: populatedTask,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -437,7 +437,7 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    tasks: result.docs,
   });
 });
 
@@ -537,7 +537,7 @@ export const getTask = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Task fetched successfully",
-    data: {
+    task: {
       task,
       activities,
       comments: commentsWithThreads,
@@ -694,7 +694,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Task updated successfully",
-      data: populatedTask,
+      task: populatedTask,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -765,7 +765,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Task soft-deleted successfully",
-      data: { taskId },
+      task: { taskId },
     });
   } catch (error) {
     await session.abortTransaction();
@@ -901,7 +901,7 @@ export const restoreTask = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Task restored successfully",
-      data: restoredTask,
+      task: restoredTask,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1047,7 +1047,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Activity created successfully",
-      data: populatedActivity,
+      activity: populatedActivity,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1117,7 +1117,7 @@ export const getAllTaskActivities = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    activities: result.docs,
   });
 });
 
@@ -1158,7 +1158,7 @@ export const getTaskActivity = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Activity fetched successfully",
-    data: activity,
+    activity: activity,
   });
 });
 
@@ -1273,7 +1273,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Activity updated successfully",
-      data: populated,
+      activity: populated,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1355,7 +1355,7 @@ export const deleteTaskActivity = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Activity soft-deleted successfully",
-      data: { activityId },
+      activity: { activityId },
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1471,7 +1471,7 @@ export const restoreTaskActivity = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Activity restored successfully",
-      data: restored,
+      activity: restored,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1586,7 +1586,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Comment created successfully",
-      data: populated,
+      comment: populated,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1694,7 +1694,7 @@ export const getAllTaskComments = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: docs,
+    comments: docs,
   });
 });
 
@@ -1753,7 +1753,7 @@ export const getTaskComment = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "Comment fetched successfully",
-    data: { ...comment.toObject(), replies },
+    comment: { ...comment.toObject(), replies },
   });
 });
 
@@ -1857,7 +1857,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Comment updated successfully",
-      data: populated,
+      comment: populated,
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1911,7 +1911,7 @@ export const deleteTaskComment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Comment soft-deleted successfully",
-      data: { commentId },
+      comment: { commentId },
     });
   } catch (error) {
     await session.abortTransaction();
@@ -1979,7 +1979,7 @@ export const restoreTaskComment = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Comment restored successfully",
-      data: restored,
+      comment: restored,
     });
   } catch (error) {
     await session.abortTransaction();

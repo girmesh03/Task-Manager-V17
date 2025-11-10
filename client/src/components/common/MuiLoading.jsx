@@ -5,9 +5,10 @@ import Backdrop from "@mui/material/Backdrop";
 import CircularProgress from "@mui/material/CircularProgress";
 import LinearProgress from "@mui/material/LinearProgress";
 import Typography from "@mui/material/Typography";
+import { LOADING_MESSAGES } from "../../utils/constants.js";
 
 export const LoadingFallback = ({
-  message = "Loading...",
+  message = LOADING_MESSAGES.LOADING,
   height = "100vh",
   sx = {},
 }) => {
@@ -32,7 +33,11 @@ export const LoadingFallback = ({
   );
 };
 
-export const BackdropFallback = ({ message = "Loading...", open, sx = {} }) => {
+export const BackdropFallback = ({
+  message = LOADING_MESSAGES.LOADING,
+  open,
+  sx = {},
+}) => {
   return (
     <Backdrop open={open}>
       <LoadingFallback message={message} sx={sx} />

@@ -234,8 +234,8 @@ const inputsCustomizations = {
         fontWeight: theme.typography.fontWeightMedium,
         letterSpacing: 0,
         color: (theme.vars || theme).palette.text.primary,
-        border: "1px solid ",
-        borderColor: gray[200],
+        // border: "1px solid ",
+        // borderColor: gray[200],
         backgroundColor: alpha(gray[50], 0.3),
         "&:hover": {
           backgroundColor: gray[100],
@@ -245,7 +245,9 @@ const inputsCustomizations = {
           backgroundColor: gray[200],
         },
         ...theme.applyStyles("dark", {
-          backgroundColor: gray[800],
+          // backgroundColor: gray[800],
+          // backgroundColor: gray[900],
+          backgroundColor: alpha(gray[800], 0.3),
           borderColor: gray[700],
           "&:hover": {
             backgroundColor: gray[900],
@@ -451,6 +453,7 @@ const inputsCustomizations = {
   MuiInputAdornment: {
     styleOverrides: {
       root: ({ theme }) => ({
+        // backgroundColor: "#fff",
         color: (theme.vars || theme).palette.grey[500],
         ...theme.applyStyles("dark", {
           color: (theme.vars || theme).palette.grey[400],

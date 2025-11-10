@@ -1,6 +1,7 @@
 // backend/models/Notification.js
 import mongoose from "mongoose";
 import softDeletePlugin from "./plugins/softDelete.js";
+import mongoosePaginate from "mongoose-paginate-v2";
 import {
   NOTIFICATION_TYPES,
   NOTIFICATION_ENTITY_MODELS,
@@ -173,6 +174,7 @@ NotificationSchema.path("readBy").validate({
 });
 
 softDeletePlugin(NotificationSchema);
+NotificationSchema.plugin(mongoosePaginate)
 
 // ==================== METHODS ====================
 NotificationSchema.statics.ensureTTLIndex = async function () {

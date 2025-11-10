@@ -75,7 +75,7 @@ export const createMaterial = asyncHandler(async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "Material created successfully",
-      data: created,
+      material: created,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -157,7 +157,7 @@ export const getAllMaterials = asyncHandler(async (req, res, next) => {
       hasNext: result.hasNextPage,
       hasPrev: result.hasPrevPage,
     },
-    data: result.docs,
+    materials: result.docs,
   });
 });
 
@@ -245,7 +245,7 @@ export const getMaterial = asyncHandler(async (req, res, next) => {
   return res.status(200).json({
     success: true,
     message: "Material fetched successfully",
-    data: {
+    material: {
       ...material,
       usage,
       recentTasks: tasks,
@@ -325,7 +325,7 @@ export const updateMaterial = asyncHandler(async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Material updated successfully",
-      data: populatedUpdated,
+      material: populatedUpdated,
     });
   } catch (err) {
     await session.abortTransaction();
@@ -376,7 +376,7 @@ export const deleteMaterial = asyncHandler(async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Material soft-deleted successfully",
-      data: { materialId, deletedAt: new Date().toISOString() },
+      material: { materialId, deletedAt: new Date().toISOString() },
     });
   } catch (err) {
     await session.abortTransaction();
@@ -442,7 +442,7 @@ export const restoreMaterial = asyncHandler(async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Material restored successfully",
-      data: restored,
+      material: restored,
     });
   } catch (err) {
     await session.abortTransaction();

@@ -1,5 +1,6 @@
 // client/src/redux/features/task/taskSlice.js
 import { createSlice } from "@reduxjs/toolkit";
+import { PAGINATION } from "../../../utils/constants";
 
 /**
  * Initial state for task UI management
@@ -24,10 +25,10 @@ const initialState = {
     deleted: false,
   },
   pagination: {
-    page: 1,
-    limit: 10,
-    sortBy: "createdAt",
-    sortOrder: "desc",
+    page: PAGINATION.DEFAULT_PAGE,
+    limit: PAGINATION.DEFAULT_LIMIT,
+    sortBy: PAGINATION.DEFAULT_SORT_BY,
+    sortOrder: PAGINATION.DEFAULT_SORT_ORDER,
   },
   selectedTaskId: null,
 };
@@ -99,7 +100,7 @@ const taskSlice = createSlice({
     /**
      * Reset entire task UI state
      */
-    resetTaskState: (state) => {
+    resetTaskState: () => {
       return initialState;
     },
   },
