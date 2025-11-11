@@ -101,6 +101,8 @@ const Tasks = () => {
   const tasks = data?.tasks || [];
   const totalTasks = data?.pagination?.totalCount || 0;
   const totalPages = data?.pagination?.totalPages || 1;
+  const hasNext = data?.pagination?.hasNext || false;
+  const hasPrev = data?.pagination?.hasPrev || false;
 
   // Memoized handlers to prevent unnecessary re-renders
   const handleFilterChange = useCallback(
@@ -321,7 +323,12 @@ const Tasks = () => {
       ) : (
         <TasksList
           tasks={tasks}
-          pagination={{ page: pagination.page, totalPages }}
+          pagination={{
+            page: pagination.page,
+            totalPages,
+            hasNext,
+            hasPrev,
+          }}
           onPageChange={handlePaginationChange}
           onView={handleView}
           onEdit={handleEdit}

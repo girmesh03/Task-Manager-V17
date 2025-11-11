@@ -8,12 +8,12 @@ import TaskCard from "../cards/TaskCard";
  *
  * Responsibilities:
  * - Render grid of task cards
- * - Handle pagination UI
+ * - Handle pagination UI with hasNext/hasPrev support
  * - Memoized to prevent unnecessary re-renders
  *
  * @param {Object} props
  * @param {Array} props.tasks - Array of task objects
- * @param {Object} props.pagination - Pagination state { page, totalPages }
+ * @param {Object} props.pagination - Pagination state { page, totalPages, hasNext, hasPrev }
  * @param {Function} props.onPageChange - Page change handler
  * @param {Function} props.onView - View task handler
  * @param {Function} props.onEdit - Edit task handler
@@ -32,6 +32,16 @@ const TasksList = ({
   onRestore,
   isFetching,
 }) => {
+  const { page, totalPages, hasNext, hasPrev } = pagination;
+
+  // Custom pagination handler that respects hasNext/hasPrev
+  const handlePageChange = (event, newPage) => {
+    // Prevent navigation if at boundaries
+    if (newPage > page && !hasNext) return;
+    if (newPage < page && !hasPrev) return;
+    onPageChange(event, newPage);
+  };
+
   return (
     <Stack direction="column" spacing={2}>
       {/* Tasks Grid */}
@@ -50,15 +60,22 @@ const TasksList = ({
       </Grid>
 
       {/* Pagination */}
-      {pagination.totalPages > 1 && (
+      {totalPages > 1 && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
           <Pagination
-            count={pagination.totalPages}
-            page={pagination.page}
-            onChange={onPageChange}
+            count={totalPages}
+            page={page}
+            onChange={handlePageChange}
             color="primary"
             size="large"
             disabled={isFetching}
+            // Disable buttons based on hasNext/hasPrev
+            siblingCount={1}
+            boundaryCount={1}
+            showFirstButton={hasPrev}
+            showLastButton={hasNext}
+            hidePrevButton={!hasPrev}
+            hideNextButton={!hasNext}
           />
         </Box>
       )}

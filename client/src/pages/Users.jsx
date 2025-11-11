@@ -91,6 +91,8 @@ const Users = () => {
   const users = data?.users || [];
   const totalUsers = data?.pagination?.totalCount || 0;
   const totalPages = data?.pagination?.totalPages || 1;
+  const hasNext = data?.pagination?.hasNext || false;
+  const hasPrev = data?.pagination?.hasPrev || false;
 
   // Memoized handlers to prevent unnecessary re-renders
   const handleFilterChange = useCallback(
@@ -271,7 +273,12 @@ const Users = () => {
       ) : (
         <UsersList
           users={users}
-          pagination={{ page: pagination.page, totalPages }}
+          pagination={{
+            page: pagination.page,
+            totalPages,
+            hasNext,
+            hasPrev,
+          }}
           onPageChange={handlePaginationChange}
           onView={handleView}
           onEdit={handleEdit}

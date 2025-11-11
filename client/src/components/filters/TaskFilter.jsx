@@ -4,7 +4,12 @@ import PropTypes from "prop-types";
 import { Box, FormControlLabel, Switch } from "@mui/material";
 import FilterTextField from "../common/FilterTextField";
 import FilterSelect from "../common/FilterSelect";
-import { TASK_STATUS, TASK_PRIORITY, TASK_TYPES } from "../../utils/constants";
+import {
+  TASK_STATUS,
+  TASK_PRIORITY,
+  TASK_TYPES,
+  PAGINATION,
+} from "../../utils/constants";
 import { useGetDepartmentsQuery } from "../../redux/features/department/departmentApi";
 import { useGetUsersQuery } from "../../redux/features/user/userApi";
 import { useGetVendorsQuery } from "../../redux/features/vendor/vendorApi";
@@ -43,19 +48,19 @@ const TaskFilter = ({ filters, onFilterChange }) => {
   // Fetch departments with error handling
   const { data: departmentsData, isError: isDepartmentsError } =
     useGetDepartmentsQuery({
-      limit: 100,
+      limit: PAGINATION.MAX_LIMIT,
       deleted: false,
     });
 
   // Fetch users with error handling
   const { data: usersData, isError: isUsersError } = useGetUsersQuery({
-    limit: 100,
+    limit: PAGINATION.MAX_LIMIT,
     deleted: false,
   });
 
   // Fetch vendors with error handling
   const { data: vendorsData, isError: isVendorsError } = useGetVendorsQuery({
-    limit: 100,
+    limit: PAGINATION.MAX_LIMIT,
     deleted: false,
   });
 
