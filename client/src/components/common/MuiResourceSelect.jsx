@@ -9,7 +9,7 @@ import {
   InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import { UI_MESSAGES } from "../../utils/constants.js";
+import { UI_MESSAGES, PAGINATION } from "../../utils/constants.js";
 import { useGetDepartmentsQuery } from "../../redux/features/department/departmentApi";
 import { useGetUsersQuery } from "../../redux/features/user/userApi";
 import { useGetMaterialsQuery } from "../../redux/features/material/materialApi";
@@ -67,7 +67,7 @@ const MuiResourceSelect = ({
 
   // Fetch data with query params
   const { data, isLoading, isError } = useResourceQuery({
-    limit: 100,
+    limit: PAGINATION.MAX_LIMIT,
     deleted: false,
     ...queryParams,
   });

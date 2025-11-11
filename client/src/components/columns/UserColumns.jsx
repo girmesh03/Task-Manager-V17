@@ -2,10 +2,11 @@
 import { Avatar, Chip, Box } from "@mui/material";
 import dayjs from "dayjs";
 import MuiActionColumn from "../common/MuiActionColumn";
+import { USER_ROLES } from "../../utils/constants";
 
 /**
  * Get User Column Definitions
- * 
+ *
  * @param {Object} actions - Action handlers {onView, onEdit, onDelete, onRestore}
  * @returns {Array} Column definitions for MuiDataGrid
  */
@@ -47,11 +48,11 @@ export const getUserColumns = (actions = {}) => [
         label={params.value}
         size="small"
         color={
-          params.value === "SuperAdmin"
+          params.value === USER_ROLES.SUPER_ADMIN
             ? "error"
-            : params.value === "Admin"
+            : params.value === USER_ROLES.ADMIN
             ? "warning"
-            : params.value === "Manager"
+            : params.value === USER_ROLES.MANAGER
             ? "info"
             : "default"
         }
@@ -74,7 +75,8 @@ export const getUserColumns = (actions = {}) => [
     field: "joinedAt",
     headerName: "Joined",
     width: 120,
-    valueFormatter: (value) => (value ? dayjs(value).format("MMM DD, YYYY") : "N/A"),
+    valueFormatter: (value) =>
+      value ? dayjs(value).format("MMM DD, YYYY") : "N/A",
   },
   {
     field: "isDeleted",

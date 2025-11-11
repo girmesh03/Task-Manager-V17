@@ -36,7 +36,7 @@ import { useGetTasksQuery } from "../../redux/features/task/taskApi";
 import { useGetDepartmentsQuery } from "../../redux/features/department/departmentApi";
 import { useGetMaterialsQuery } from "../../redux/features/material/materialApi";
 import { useGetVendorsQuery } from "../../redux/features/vendor/vendorApi";
-import { ROUTES } from "../../utils/constants";
+import { ROUTES, PAGINATION } from "../../utils/constants";
 
 /**
  * GlobalSearch Component
@@ -65,31 +65,33 @@ const GlobalSearch = ({ open, onClose }) => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch data with search query
+  // Fetch data with search query (limit to 5 results per resource for quick preview)
+  const SEARCH_RESULT_LIMIT = 5;
+
   const { data: usersData, isLoading: usersLoading } = useGetUsersQuery(
-    { search: debouncedQuery, limit: 5 },
+    { search: debouncedQuery, limit: SEARCH_RESULT_LIMIT },
     { skip: !debouncedQuery || debouncedQuery.length < 2 }
   );
 
   const { data: tasksData, isLoading: tasksLoading } = useGetTasksQuery(
-    { search: debouncedQuery, limit: 5 },
+    { search: debouncedQuery, limit: SEARCH_RESULT_LIMIT },
     { skip: !debouncedQuery || debouncedQuery.length < 2 }
   );
 
   const { data: departmentsData, isLoading: departmentsLoading } =
     useGetDepartmentsQuery(
-      { search: debouncedQuery, limit: 5 },
+      { search: debouncedQuery, limit: SEARCH_RESULT_LIMIT },
       { skip: !debouncedQuery || debouncedQuery.length < 2 }
     );
 
   const { data: materialsData, isLoading: materialsLoading } =
     useGetMaterialsQuery(
-      { search: debouncedQuery, limit: 5 },
+      { search: debouncedQuery, limit: SEARCH_RESULT_LIMIT },
       { skip: !debouncedQuery || debouncedQuery.length < 2 }
     );
 
   const { data: vendorsData, isLoading: vendorsLoading } = useGetVendorsQuery(
-    { search: debouncedQuery, limit: 5 },
+    { search: debouncedQuery, limit: SEARCH_RESULT_LIMIT },
     { skip: !debouncedQuery || debouncedQuery.length < 2 }
   );
 
@@ -154,6 +156,8 @@ const GlobalSearch = ({ open, onClose }) => {
       disableEnforceFocus
       disableAutoFocus
       disableRestoreFocus
+      aria-labelledby="global-search-title"
+      aria-describedby="global-search-description"
       slotProps={{
         paper: {
           sx: (theme) => ({
@@ -168,7 +172,25 @@ const GlobalSearch = ({ open, onClose }) => {
         },
       }}
     >
-      <DialogContent sx={{ p: 0 }}>
+      <DialogContent id="global-search-description" sx={{ p: 0 }}>
+        {/* Visually hidden title for screen readers */}
+        <Box
+          id="global-search-title"
+          sx={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            padding: 0,
+            margin: -1,
+            overflow: "hidden",
+            clip: "rect(0, 0, 0, 0)",
+            whiteSpace: "nowrap",
+            border: 0,
+          }}
+        >
+          Global Search Dialog
+        </Box>
+
         {/* Search Input */}
         <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
           <TextField

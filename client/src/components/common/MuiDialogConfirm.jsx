@@ -126,7 +126,7 @@ const MuiDialogConfirm = ({
         </Box>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent id="confirm-dialog-content">
         <DialogContentText id="confirm-dialog-description">
           {message}
         </DialogContentText>

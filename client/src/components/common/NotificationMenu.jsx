@@ -27,7 +27,7 @@ import {
   useMarkAllAsReadMutation,
 } from "../../redux/features/notification/notificationApi";
 import { handleRTKError } from "../../utils/errorHandler";
-import { ROUTES } from "../../utils/constants";
+import { ROUTES, PAGINATION } from "../../utils/constants";
 
 dayjs.extend(relativeTime);
 
@@ -44,10 +44,12 @@ const NotificationMenu = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
-  // Fetch recent unread notifications
+  // Fetch recent unread notifications (limit to 5 for menu preview)
+  const NOTIFICATION_PREVIEW_LIMIT = 5;
+
   const { data: notificationsData } = useGetNotificationsQuery({
     unreadOnly: true,
-    limit: 5,
+    limit: NOTIFICATION_PREVIEW_LIMIT,
   });
 
   const [markAsRead] = useMarkAsReadMutation();

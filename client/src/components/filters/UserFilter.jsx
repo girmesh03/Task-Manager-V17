@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { Box, FormControlLabel, Switch } from "@mui/material";
 import FilterTextField from "../common/FilterTextField";
 import FilterSelect from "../common/FilterSelect";
-import { USER_ROLES } from "../../utils/constants";
+import { USER_ROLES, PAGINATION } from "../../utils/constants";
 import { useGetDepartmentsQuery } from "../../redux/features/department/departmentApi";
 
 /**
@@ -31,7 +31,7 @@ const UserFilter = ({ filters, onFilterChange }) => {
   // Fetch departments with error handling
   const { data: departmentsData, isError: isDepartmentsError } =
     useGetDepartmentsQuery({
-      limit: 100,
+      limit: PAGINATION.MAX_LIMIT,
       deleted: false,
     });
 
