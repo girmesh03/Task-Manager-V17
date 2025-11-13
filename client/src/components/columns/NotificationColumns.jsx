@@ -77,7 +77,7 @@ export const getNotificationColumns = (actions = {}) => [
     field: "createdAt",
     headerName: "Time",
     width: 150,
-    valueFormatter: (value) => (value ? dayjs(value).fromNow() : "N/A"),
+    valueFormatter: (value) => (value ? formatRelativeTime(value) : "N/A"),
   },
   {
     field: "actions",
