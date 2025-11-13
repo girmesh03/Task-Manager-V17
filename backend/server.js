@@ -1,6 +1,9 @@
 // backend/server.js
 import http from "http";
 import mongoose from "mongoose";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc.js";
+import timezone from "dayjs/plugin/timezone.js";
 import app from "./app.js";
 
 import connectDB from "./config/db.js";
@@ -9,6 +12,13 @@ import corsOptions from "./config/corsOptions.js";
 import setupSocketIO from "./utils/socket.js";
 import { setIO, getIO } from "./utils/socketInstance.js";
 import emailService from "./services/emailService.js";
+
+// Configure dayjs with UTC and timezone plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Set server timezone to UTC
+process.env.TZ = "UTC";
 
 let PORT = parseInt(process.env.PORT || "4000", 10);
 const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
