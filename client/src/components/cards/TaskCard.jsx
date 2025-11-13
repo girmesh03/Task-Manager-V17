@@ -67,6 +67,7 @@ const TaskCard = ({ task, onView, onEdit, onDelete, onRestore }) => {
 
   const getDaysUntilDue = (dueDate) => {
     if (!dueDate) return null;
+    // console.log("dueDate", dueDate);
     const now = dayjs();
     const due = dayjs(dueDate);
     const diff = due.diff(now, "day");

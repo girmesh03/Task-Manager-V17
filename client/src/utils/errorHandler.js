@@ -507,35 +507,49 @@ export const isFrontendError = (error) => {
  * Centralized Authentication Error Handler
  *
  * Handles authentication errors from both Socket.IO and RTK Query.
- * Clears credentials, disconnects socket, and redirects to login.
+ * Clears credentials, disconnects socket, resets API state, and redirects to login.
  *
  * @param {Error|Object} error - Error object
  * @param {string} [source="unknown"] - Source of the error (socket, api, etc.)
  */
 export const handleAuthError = (error, source = "unknown") => {
-  console.error(`Auth error from ${source}:`, error);
+  console.error(`🚨 Auth error from ${source}:`, error);
 
-  // Import store dynamically to avoid circular dependency
-  import("../redux/app/store").then(({ store }) => {
-    import("../redux/features/auth/authSlice").then(({ clearCredentials }) => {
-      // Clear authentication credentials
-      store.dispatch(clearCredentials());
-    });
+  // Import store and actions dynamically to avoid circular dependency
+  Promise.all([
+    import("../redux/app/store"),
+    import("../redux/features/auth/authSlice"),
+  ]).then(([{ store }, { clearCredentials }]) => {
+    // Clear authentication credentials
+    store.dispatch(clearCredentials());
+
+    // Reset API state to clear all cached data
+    store.dispatch({ type: "api/resetApiState" });
   });
 
   // Disconnect socket if error is not from socket
   if (source !== "socket") {
     import("../services/socketService").then(({ socketService }) => {
       if (socketService.isConnected) {
+        console.log("🔌 Disconnecting socket due to auth error");
         socketService.disconnect();
       }
     });
   }
 
-  // Redirect to login page
+  // Show user-friendly message
+  import("react-toastify").then(({ toast }) => {
+    toast.error("Your session has expired. Please log in again.", {
+      toastId: "session-expired",
+      autoClose: 3000,
+    });
+  });
+
+  // Redirect to login page after a short delay
   setTimeout(() => {
+    console.log("🚪 Redirecting to login page");
     window.location.href = "/login";
-  }, 100);
+  }, 500);
 };
 
 export default {

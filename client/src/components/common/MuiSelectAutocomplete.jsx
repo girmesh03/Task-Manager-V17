@@ -13,6 +13,7 @@ const MuiSelectAutocomplete = ({
   required,
   placeholder = UI_MESSAGES.PLACEHOLDERS.SELECT_OPTION,
   startAdornment,
+  onValueChange,
   ...muiProps
 }) => {
   return (
@@ -26,8 +27,13 @@ const MuiSelectAutocomplete = ({
           options.find((option) => option.label === value) || null;
 
         const handleChange = (_event, newValue) => {
+          const newLabelValue = newValue ? newValue.label : "";
           // Pass the label value to react-hook-form
-          onChange(newValue ? newValue.label : "");
+          onChange(newLabelValue);
+          // Call optional callback with the new value
+          if (onValueChange) {
+            onValueChange(newLabelValue);
+          }
         };
 
         return (
@@ -49,6 +55,7 @@ const MuiSelectAutocomplete = ({
                 required={required}
                 error={!!error}
                 helperText={error?.message}
+                size="small"
                 slotProps={{
                   input: {
                     ...params.InputProps,
@@ -93,6 +100,7 @@ MuiSelectAutocomplete.propTypes = {
   label: PropTypes.string,
   placeholder: PropTypes.string,
   startAdornment: PropTypes.node,
+  onValueChange: PropTypes.func,
 };
 
 export default MuiSelectAutocomplete;

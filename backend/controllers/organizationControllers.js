@@ -76,7 +76,7 @@ export const getAllOrganizations = asyncHandler(async (req, res, next) => {
 
   const result = await query.paginate(filter, options);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Organizations fetched successfully",
     pagination: {
@@ -221,7 +221,7 @@ export const updateOrganization = asyncHandler(async (req, res, next) => {
     });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Organization updated successfully",
       organization: updated,
@@ -285,7 +285,7 @@ export const deleteOrganization = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "organization:deleted", { organizationId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Organization soft-deleted successfully",
       organization: { organizationId, deletedAt: new Date().toISOString() },
@@ -369,7 +369,7 @@ export const restoreOrganization = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "organization:restored", { organizationId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Organization restored successfully",
       organization: restored,

@@ -117,7 +117,7 @@ export const createUser = asyncHandler(async (req, res, next) => {
       })
       .lean();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "User created successfully",
       user: createdUser,
@@ -276,7 +276,7 @@ export const getUser = asyncHandler(async (req, res, next) => {
     }),
   ]);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "User fetched successfully",
     user: {
@@ -401,7 +401,7 @@ export const updateUserBy = asyncHandler(async (req, res, next) => {
       })
       .lean();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "User updated successfully",
       user: updatedUser,
@@ -505,7 +505,7 @@ export const updateMyProfile = asyncHandler(async (req, res, next) => {
       })
       .lean();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
       user: updatedProfile,
@@ -549,7 +549,7 @@ export const getMyAccount = asyncHandler(async (req, res, next) => {
     })
     .lean();
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Account fetched successfully",
     user: {
@@ -625,7 +625,7 @@ export const getMyProfile = asyncHandler(async (req, res, next) => {
     };
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Profile fetched successfully",
     user: {
@@ -671,7 +671,7 @@ export const deleteUser = asyncHandler(async (req, res, next) => {
     emitToDepartment(deptId, "user:deleted", { userId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "User soft-deleted successfully",
       user: { userId, deletedAt: new Date().toISOString() },
@@ -737,7 +737,7 @@ export const restoreUser = asyncHandler(async (req, res, next) => {
     emitToDepartment(restored.department, "user:restored", { userId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "User restored successfully",
       user: restored,
@@ -789,7 +789,7 @@ export const getEmailPreferences = asyncHandler(async (req, res, next) => {
     });
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Email preferences retrieved successfully",
     user: {
@@ -899,7 +899,7 @@ export const updateEmailPreferences = asyncHandler(async (req, res, next) => {
     updatedAt: new Date(),
   });
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Email preferences updated successfully",
     user: {
@@ -931,7 +931,7 @@ export const getMyEmailPreferences = asyncHandler(async (req, res, next) => {
     });
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Email preferences retrieved successfully",
     user: {
@@ -1024,7 +1024,7 @@ export const updateMyEmailPreferences = asyncHandler(async (req, res, next) => {
     updatedAt: new Date(),
   });
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Email preferences updated successfully",
     user: {
@@ -1178,7 +1178,7 @@ export const sendBulkAnnouncement = asyncHandler(async (req, res, next) => {
       sentAt: notification.sentAt,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: `Announcement sent to ${recipients.length} users`,
       notification: {

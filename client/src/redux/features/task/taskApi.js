@@ -78,13 +78,24 @@ export const taskApi = apiSlice.injectEndpoints({
 
     /**
      * Get single task by ID with complete details including all activities, comments, attachments, assignees, vendor information, materials, and cost history
-     * @param {string} taskId - Task ID
+     * @param {string|Object} params - Task ID string or object with taskId and deleted flag
      * @returns {Object} Comprehensive task document with activities and comments collections
+     * Backend response: { success, message, task: { task, activities, comments } }
      */
     getTaskById: builder.query({
-      query: (taskId) => `${API_ENDPOINTS.TASKS}/${taskId}`,
-      transformResponse: (response) => response.task,
-      providesTags: (result, error, taskId) => [{ type: "Task", id: taskId }],
+      query: (params) => {
+        const taskId = typeof params === "string" ? params : params.taskId;
+        const deleted = typeof params === "object" ? params.deleted : false;
+        return {
+          url: `${API_ENDPOINTS.TASKS}/${taskId}`,
+          params: { deleted },
+        };
+      },
+      transformResponse: (response) => response,
+      providesTags: (_result, _error, params) => {
+        const taskId = typeof params === "string" ? params : params.taskId;
+        return [{ type: "Task", id: taskId }];
+      },
     }),
 
     /**
@@ -131,7 +142,7 @@ export const taskApi = apiSlice.injectEndpoints({
         body: updateData,
       }),
       transformResponse: (response) => response.task,
-      invalidatesTags: (result, error, { taskId }) => [
+      invalidatesTags: (_result, _error, { taskId }) => [
         { type: "Task", id: taskId },
         { type: "Task", id: "LIST" },
       ],
@@ -148,7 +159,7 @@ export const taskApi = apiSlice.injectEndpoints({
         method: "DELETE",
       }),
       transformResponse: (response) => response.task,
-      invalidatesTags: (result, error, taskId) => [
+      invalidatesTags: (_result, _error, taskId) => [
         { type: "Task", id: taskId },
         { type: "Task", id: "LIST" },
         { type: "TaskActivity", id: "LIST" },
@@ -169,7 +180,7 @@ export const taskApi = apiSlice.injectEndpoints({
         method: "POST",
       }),
       transformResponse: (response) => response.task,
-      invalidatesTags: (result, error, taskId) => [
+      invalidatesTags: (_result, _error, taskId) => [
         { type: "Task", id: taskId },
         { type: "Task", id: "LIST" },
       ],
@@ -210,7 +221,7 @@ export const taskApi = apiSlice.injectEndpoints({
       query: ({ taskId, activityId }) =>
         `${API_ENDPOINTS.TASKS}/${taskId}/activities/${activityId}`,
       transformResponse: (response) => response.activity,
-      providesTags: (result, error, { activityId }) => [
+      providesTags: (_result, _error, { activityId }) => [
         { type: "TaskActivity", id: activityId },
       ],
     }),
@@ -227,7 +238,7 @@ export const taskApi = apiSlice.injectEndpoints({
         body: activityData,
       }),
       transformResponse: (response) => response.activity,
-      invalidatesTags: (result, error, { taskId }) => [
+      invalidatesTags: (_result, _error, { taskId }) => [
         { type: "TaskActivity", id: "LIST" },
         { type: "Task", id: taskId },
         { type: "Material", id: "LIST" },
@@ -246,7 +257,7 @@ export const taskApi = apiSlice.injectEndpoints({
         body: updateData,
       }),
       transformResponse: (response) => response.activity,
-      invalidatesTags: (result, error, { taskId, activityId }) => [
+      invalidatesTags: (_result, _error, { taskId, activityId }) => [
         { type: "TaskActivity", id: activityId },
         { type: "TaskActivity", id: "LIST" },
         { type: "Task", id: taskId },
@@ -265,7 +276,7 @@ export const taskApi = apiSlice.injectEndpoints({
         method: "DELETE",
       }),
       transformResponse: (response) => response.activity,
-      invalidatesTags: (result, error, { taskId, activityId }) => [
+      invalidatesTags: (_result, _error, { taskId, activityId }) => [
         { type: "TaskActivity", id: activityId },
         { type: "TaskActivity", id: "LIST" },
         { type: "Task", id: taskId },
@@ -283,7 +294,7 @@ export const taskApi = apiSlice.injectEndpoints({
         method: "POST",
       }),
       transformResponse: (response) => response.activity,
-      invalidatesTags: (result, error, { taskId, activityId }) => [
+      invalidatesTags: (_result, _error, { taskId, activityId }) => [
         { type: "TaskActivity", id: activityId },
         { type: "TaskActivity", id: "LIST" },
         { type: "Task", id: taskId },
@@ -325,7 +336,7 @@ export const taskApi = apiSlice.injectEndpoints({
       query: ({ taskId, commentId }) =>
         `${API_ENDPOINTS.TASKS}/${taskId}/comments/${commentId}`,
       transformResponse: (response) => response.comment,
-      providesTags: (result, error, { commentId }) => [
+      providesTags: (_result, _error, { commentId }) => [
         { type: "TaskComment", id: commentId },
       ],
     }),
@@ -342,7 +353,7 @@ export const taskApi = apiSlice.injectEndpoints({
         body: commentData,
       }),
       transformResponse: (response) => response.comment,
-      invalidatesTags: (result, error, { taskId }) => [
+      invalidatesTags: (_result, _error, { taskId }) => [
         { type: "TaskComment", id: "LIST" },
         { type: "Task", id: taskId },
         { type: "User", id: "LIST" },
@@ -362,7 +373,7 @@ export const taskApi = apiSlice.injectEndpoints({
         body: updateData,
       }),
       transformResponse: (response) => response.comment,
-      invalidatesTags: (result, error, { taskId, commentId }) => [
+      invalidatesTags: (_result, _error, { taskId, commentId }) => [
         { type: "TaskComment", id: commentId },
         { type: "TaskComment", id: "LIST" },
         { type: "Task", id: taskId },
@@ -382,7 +393,7 @@ export const taskApi = apiSlice.injectEndpoints({
         method: "DELETE",
       }),
       transformResponse: (response) => response.comment,
-      invalidatesTags: (result, error, { taskId, commentId }) => [
+      invalidatesTags: (_result, _error, { taskId, commentId }) => [
         { type: "TaskComment", id: commentId },
         { type: "TaskComment", id: "LIST" },
         { type: "Task", id: taskId },
@@ -400,7 +411,7 @@ export const taskApi = apiSlice.injectEndpoints({
         method: "POST",
       }),
       transformResponse: (response) => response.comment,
-      invalidatesTags: (result, error, { taskId, commentId }) => [
+      invalidatesTags: (_result, _error, { taskId, commentId }) => [
         { type: "TaskComment", id: commentId },
         { type: "TaskComment", id: "LIST" },
         { type: "Task", id: taskId },
