@@ -83,7 +83,7 @@ export const getAllNotifications = asyncHandler(async (req, res, next) => {
 
   const result = await query.paginate(filter, options);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Notifications fetched successfully",
     pagination: {
@@ -171,7 +171,7 @@ export const markNotificationRead = asyncHandler(async (req, res, next) => {
       .session(session);
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Notification marked as read",
       notification: updated,
@@ -208,7 +208,7 @@ export const getUnreadCount = asyncHandler(async (req, res, next) => {
 
   const count = await Notification.countDocuments(filter);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Unread notification count fetched successfully",
     notification: { count },

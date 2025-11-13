@@ -1,18 +1,19 @@
 // client/src/components/common/MuiTextArea.jsx
 import { forwardRef } from "react";
-import PropTypes from "prop-types";
 import { TextField, Box, Typography } from "@mui/material";
 
 /**
  * MuiTextArea Component
  *
  * Multi-line text input with character counter.
+ * Compatible with React Hook Form's register pattern.
+ * Works like MuiTextField - use with {...register()} spread.
  *
  * @param {Object} props
  * @param {string} props.name - Field name
  * @param {Object} props.error - Error object from React Hook Form
  * @param {string} props.label - Input label
- * @param {number} [props.maxLength] - Maximum character length
+ * @param {number} [props.maxLength] - Maximum character length (shows counter)
  * @param {number} [props.rows] - Number of rows (default: 4)
  * @param {number} [props.minRows] - Minimum rows for auto-resize
  * @param {number} [props.maxRows] - Maximum rows for auto-resize
@@ -30,12 +31,14 @@ const MuiTextArea = forwardRef(
       minRows,
       maxRows,
       helperText,
-      value = "",
+      onChange,
+      onBlur,
       ...muiProps
     },
     ref
   ) => {
-    const currentLength = value?.length || 0;
+    // Get value from muiProps for character counter
+    const currentLength = (muiProps.value || "").length;
     const showCounter = !!maxLength;
 
     return (
@@ -44,7 +47,8 @@ const MuiTextArea = forwardRef(
           {...muiProps}
           name={name}
           label={label}
-          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
           inputRef={ref}
           multiline
           rows={minRows || maxRows ? undefined : rows}
@@ -81,17 +85,5 @@ const MuiTextArea = forwardRef(
 );
 
 MuiTextArea.displayName = "MuiTextArea";
-
-MuiTextArea.propTypes = {
-  name: PropTypes.string.isRequired,
-  error: PropTypes.object,
-  label: PropTypes.string.isRequired,
-  maxLength: PropTypes.number,
-  rows: PropTypes.number,
-  minRows: PropTypes.number,
-  maxRows: PropTypes.number,
-  helperText: PropTypes.string,
-  value: PropTypes.string,
-};
 
 export default MuiTextArea;

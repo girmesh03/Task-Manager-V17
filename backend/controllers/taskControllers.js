@@ -85,8 +85,8 @@ const createAttachments = async ({
   attachments,
   session,
 }) => {
-  if (!attachments || attachments.length === 0) return [];
-  if (attachments.length > MAX_ATTACHMENTS_PER_ENTITY) {
+  if (!attachments || attachments?.length === 0) return [];
+  if (attachments?.length > MAX_ATTACHMENTS_PER_ENTITY) {
     throw CustomError.validation(
       `Attachments cannot exceed ${MAX_ATTACHMENTS_PER_ENTITY}`
     );
@@ -230,7 +230,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
       // Transform materials from frontend format to backend format
       /** @type {Array} */
       let transformedMaterials = [];
-      if (materials && materials.length > 0) {
+      if (materials && materials?.length > 0) {
         transformedMaterials = await transformMaterialsForStorage(
           materials,
           orgId,
@@ -262,7 +262,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
       session,
     });
 
-    if (createdAttachmentIds.length > 0) {
+    if (createdAttachmentIds?.length > 0) {
       taskDoc.attachments = [
         ...(taskDoc.attachments || []),
         ...createdAttachmentIds,
@@ -288,7 +288,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(notificationResult.realtimeRecipients, "task:created", {
         taskId: taskDoc._id,
         title: taskDoc.title,
@@ -303,7 +303,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Task created successfully",
       task: populatedTask,
@@ -372,7 +372,7 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
   if (vendorId) filter.vendor = vendorId;
   if (createdBy) filter.createdBy = createdBy;
   if (watcherId) filter.watchers = watcherId;
-  if (Array.isArray(tags) && tags.length > 0) {
+  if (Array.isArray(tags) && tags?.length > 0) {
     filter.tags = { $in: tags };
   }
 
@@ -426,7 +426,9 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
 
   const result = await BaseTask.paginate(query.getFilter(), paginateOptions);
 
-  res.status(200).json({
+  console.log("result", result);
+
+  return res.status(200).json({
     success: true,
     message: "Tasks fetched successfully",
     pagination: {
@@ -453,20 +455,38 @@ export const getAllTasks = asyncHandler(async (req, res, next) => {
 export const getTask = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
   const { taskId } = req.params;
+  const { deleted = false } = req.query;
 
   const session = null;
 
+  // Find task with or without deleted flag based on query parameter
+  let taskQuery = BaseTask.findOne({ _id: taskId, organization: orgId });
+  if (deleted) {
+    taskQuery = taskQuery.withDeleted();
+  }
+
+  const taskDoc = await taskQuery.exec();
+  if (!taskDoc) {
+    throw CustomError.notFound("Task not found");
+  }
+
+  // Populate the task
   const task = await populateTask(taskId, session);
   if (!task || task.organization.toString() !== orgId.toString()) {
     throw CustomError.notFound("Task not found");
   }
 
-  // Activities
-  const activities = await TaskActivity.find({
+  // Activities - include deleted if task is deleted
+  let activitiesQuery = TaskActivity.find({
     task: taskId,
     organization: orgId,
-    isDeleted: false,
-  })
+  });
+  if (!deleted) {
+    activitiesQuery = activitiesQuery.where({ isDeleted: false });
+  } else {
+    activitiesQuery = activitiesQuery.withDeleted();
+  }
+  const activities = await activitiesQuery
     .populate({
       path: "attachments",
       match: { isDeleted: false },
@@ -482,13 +502,18 @@ export const getTask = asyncHandler(async (req, res, next) => {
     })
     .sort({ createdAt: -1 });
 
-  // Top-level comments (task-level)
-  const topComments = await TaskComment.find({
+  // Top-level comments (task-level) - include deleted if task is deleted
+  let topCommentsQuery = TaskComment.find({
     parent: taskId,
     parentModel: { $in: ["RoutineTask", "AssignedTask", "ProjectTask"] },
     organization: orgId,
-    isDeleted: false,
-  })
+  });
+  if (!deleted) {
+    topCommentsQuery = topCommentsQuery.where({ isDeleted: false });
+  } else {
+    topCommentsQuery = topCommentsQuery.withDeleted();
+  }
+  const topComments = await topCommentsQuery
     .populate({
       path: "mentions",
       match: { isDeleted: false },
@@ -506,12 +531,17 @@ export const getTask = asyncHandler(async (req, res, next) => {
     .sort({ createdAt: -1 });
 
   // Fetch replies (one level deep, recursive logic could be added for more)
-  const replies = await TaskComment.find({
+  let repliesQuery = TaskComment.find({
     parent: { $in: topComments.map((c) => c._id) },
     parentModel: "TaskComment",
     organization: orgId,
-    isDeleted: false,
-  })
+  });
+  if (!deleted) {
+    repliesQuery = repliesQuery.where({ isDeleted: false });
+  } else {
+    repliesQuery = repliesQuery.withDeleted();
+  }
+  const replies = await repliesQuery
     .populate({
       path: "mentions",
       match: { isDeleted: false },
@@ -534,7 +564,8 @@ export const getTask = asyncHandler(async (req, res, next) => {
     replies: replies.filter((r) => r.parent.toString() === c._id.toString()),
   }));
 
-  res.status(200).json({
+  console.log("task", task);
+  return res.status(200).json({
     success: true,
     message: "Task fetched successfully",
     task: {
@@ -628,7 +659,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
       }
     } else if (task.taskType === "RoutineTask") {
       if (date !== undefined) task.date = date;
-      if (Array.isArray(materials) && materials.length > 0) {
+      if (Array.isArray(materials) && materials?.length > 0) {
         // Transform materials from frontend format to backend format
         const transformedMaterials = await transformMaterialsForStorage(
           materials,
@@ -644,7 +675,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     await task.save({ session });
 
     // Add new attachments if any (append)
-    if (Array.isArray(attachments) && attachments.length > 0) {
+    if (Array.isArray(attachments) && attachments?.length > 0) {
       const newAttachmentIds = await createAttachments({
         parentId: task._id,
         parentModel: task.taskType,
@@ -654,7 +685,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
         attachments,
         session,
       });
-      if (newAttachmentIds.length > 0) {
+      if (newAttachmentIds?.length > 0) {
         task.attachments = [...(task.attachments || []), ...newAttachmentIds];
         await task.save({ session });
       }
@@ -678,7 +709,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(notificationResult.realtimeRecipients, "task:updated", {
         taskId: task._id,
         title: task.title,
@@ -691,7 +722,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Task updated successfully",
       task: populatedTask,
@@ -752,7 +783,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(notificationResult.realtimeRecipients, "task:deleted", {
         taskId,
       });
@@ -762,7 +793,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Task soft-deleted successfully",
       task: { taskId },
@@ -888,7 +919,7 @@ export const restoreTask = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(notificationResult.realtimeRecipients, "task:restored", {
         taskId,
       });
@@ -898,7 +929,7 @@ export const restoreTask = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Task restored successfully",
       task: restoredTask,
@@ -948,7 +979,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
     // Transform materials from frontend format to backend format
     /** @type {Array} */
     let transformedMaterials = [];
-    if (materials && materials.length > 0) {
+    if (materials && materials?.length > 0) {
       transformedMaterials = await transformMaterialsForStorage(
         materials,
         orgId,
@@ -983,7 +1014,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
       session,
     });
 
-    if (createdAttachmentIds.length > 0) {
+    if (createdAttachmentIds?.length > 0) {
       activityDoc.attachments = [
         ...(activityDoc.attachments || []),
         ...createdAttachmentIds,
@@ -1023,7 +1054,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(
         notificationResult.realtimeRecipients,
         "activity:created",
@@ -1044,7 +1075,7 @@ export const createTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Activity created successfully",
       activity: populatedActivity,
@@ -1106,7 +1137,7 @@ export const getAllTaskActivities = asyncHandler(async (req, res, next) => {
 
   const result = await TaskActivity.paginate(query.getFilter(), options);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Activities fetched successfully",
     pagination: {
@@ -1155,7 +1186,7 @@ export const getTaskActivity = asyncHandler(async (req, res, next) => {
 
   if (!activity) throw CustomError.notFound("Activity not found");
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Activity fetched successfully",
     activity: activity,
@@ -1191,7 +1222,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
     if (!act) throw CustomError.notFound("Activity not found");
 
     if (activity !== undefined) act.activity = activity;
-    if (Array.isArray(materials) && materials.length > 0) {
+    if (Array.isArray(materials) && materials?.length > 0) {
       // Transform materials from frontend format to backend format
       const transformedMaterials = await transformMaterialsForStorage(
         materials,
@@ -1204,7 +1235,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
 
     await act.save({ session });
 
-    if (Array.isArray(attachments) && attachments.length > 0) {
+    if (Array.isArray(attachments) && attachments?.length > 0) {
       const newAttIds = await createAttachments({
         parentId: act._id,
         parentModel: "TaskActivity",
@@ -1213,7 +1244,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
         attachments,
         session,
       });
-      if (newAttIds.length > 0) {
+      if (newAttIds?.length > 0) {
         act.attachments = [...(act.attachments || []), ...newAttIds];
         await act.save({ session });
       }
@@ -1249,7 +1280,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(
         notificationResult.realtimeRecipients,
         "activity:updated",
@@ -1270,7 +1301,7 @@ export const updateTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Activity updated successfully",
       activity: populated,
@@ -1331,7 +1362,7 @@ export const deleteTaskActivity = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(
         notificationResult.realtimeRecipients,
         "activity:deleted",
@@ -1352,7 +1383,7 @@ export const deleteTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Activity soft-deleted successfully",
       activity: { activityId },
@@ -1447,7 +1478,7 @@ export const restoreTaskActivity = asyncHandler(async (req, res, next) => {
       }
     );
 
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(
         notificationResult.realtimeRecipients,
         "activity:restored",
@@ -1468,7 +1499,7 @@ export const restoreTaskActivity = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Activity restored successfully",
       activity: restored,
@@ -1527,7 +1558,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
       session,
     });
 
-    if (attachmentIds.length > 0) {
+    if (attachmentIds?.length > 0) {
       com.attachments = [...(com.attachments || []), ...attachmentIds];
       await com.save({ session });
     }
@@ -1565,7 +1596,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
         },
       }
     );
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(
         notificationResult.realtimeRecipients,
         "comment:created",
@@ -1583,7 +1614,7 @@ export const createTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Comment created successfully",
       comment: populated,
@@ -1683,7 +1714,7 @@ export const getAllTaskComments = asyncHandler(async (req, res, next) => {
     }));
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Comments fetched successfully",
     pagination: {
@@ -1750,7 +1781,7 @@ export const getTaskComment = asyncHandler(async (req, res, next) => {
     })
     .sort({ createdAt: 1 });
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Comment fetched successfully",
     comment: { ...comment.toObject(), replies },
@@ -1790,7 +1821,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
 
     await com.save({ session });
 
-    if (Array.isArray(attachments) && attachments.length > 0) {
+    if (Array.isArray(attachments) && attachments?.length > 0) {
       const attIds = await createAttachments({
         parentId: com._id,
         parentModel: "TaskComment",
@@ -1800,7 +1831,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
         attachments,
         session,
       });
-      if (attIds.length > 0) {
+      if (attIds?.length > 0) {
         com.attachments = [...(com.attachments || []), ...attIds];
         await com.save({ session });
       }
@@ -1836,7 +1867,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
         },
       }
     );
-    if (notificationResult.realtimeRecipients.length > 0) {
+    if (notificationResult.realtimeRecipients?.length > 0) {
       emitToRecipients(
         notificationResult.realtimeRecipients,
         "comment:updated",
@@ -1854,7 +1885,7 @@ export const updateTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Comment updated successfully",
       comment: populated,
@@ -1908,7 +1939,7 @@ export const deleteTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Comment soft-deleted successfully",
       comment: { commentId },
@@ -1976,7 +2007,7 @@ export const restoreTaskComment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Comment restored successfully",
       comment: restored,

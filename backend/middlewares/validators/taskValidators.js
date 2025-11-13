@@ -63,7 +63,7 @@ const validateAttachmentsArray = body("attachments")
   .withMessage("Attachments must be an array")
   .bail()
   .custom((array) => {
-    if (array && array.length > MAX_ATTACHMENTS_PER_ENTITY) {
+    if (array && array?.length > MAX_ATTACHMENTS_PER_ENTITY) {
       throw new Error(
         `Attachments cannot exceed ${MAX_ATTACHMENTS_PER_ENTITY}`
       );
@@ -277,7 +277,7 @@ const baseTaskFieldValidators = [
     .withMessage("watcherIds must be an array")
     .bail()
     .custom((ids) => {
-      if (ids.length > MAX_WATCHERS_PER_TASK) {
+      if (ids?.length > MAX_WATCHERS_PER_TASK) {
         throw new Error(
           `Watchers cannot exceed ${MAX_WATCHERS_PER_TASK} users`
         );
@@ -287,7 +287,7 @@ const baseTaskFieldValidators = [
     .bail()
     .customSanitizer((ids) => dedupeIds(ids))
     .custom(async (ids, { req }) => {
-      if (!ids || ids.length === 0) return true;
+      if (!ids || ids?.length === 0) return true;
       const orgId = req.user?.organization?._id;
       const users = await User.find({
         _id: { $in: ids },
@@ -295,7 +295,7 @@ const baseTaskFieldValidators = [
         role: { $in: HEAD_OF_DEPARTMENT_ROLES },
         isDeleted: false,
       });
-      if (users.length !== ids.length) {
+      if (users?.length !== ids?.length) {
         throw new Error(
           "All watchers must be SuperAdmin/Admin within your organization"
         );
@@ -309,18 +309,18 @@ const baseTaskFieldValidators = [
     .withMessage("Tags must be an array")
     .bail()
     .custom((tags) => {
-      if (tags.length > MAX_TAGS_PER_TASK) {
+      if (tags?.length > MAX_TAGS_PER_TASK) {
         throw new Error(`Tags cannot exceed ${MAX_TAGS_PER_TASK} items`);
       }
       const uniqueTags = new Set(
         tags.map((t) => t?.toLowerCase().trim()).filter(Boolean)
       );
-      if (uniqueTags.size !== tags.filter((t) => t && t.trim()).length) {
+      if (uniqueTags.size !== tags.filter((t) => t && t.trim())?.length) {
         throw new Error("Duplicate tags are not allowed");
       }
       for (const t of tags) {
         if (typeof t !== "string") throw new Error("All tags must be strings");
-        if (t.trim().length > MAX_TAG_LENGTH)
+        if (t.trim()?.length > MAX_TAG_LENGTH)
           throw new Error(
             `Each tag cannot exceed ${MAX_TAG_LENGTH} characters`
           );
@@ -370,7 +370,7 @@ const assignedTaskValidators = [
     .withMessage("Assignee IDs must be a non-empty array")
     .bail()
     .custom((array) => {
-      if (array.length > MAX_ASSIGNEES_PER_TASK) {
+      if (array?.length > MAX_ASSIGNEES_PER_TASK) {
         throw new Error(
           `Number of user assigned to a task cannot exceed ${MAX_ASSIGNEES_PER_TASK}`
         );
@@ -387,7 +387,7 @@ const assignedTaskValidators = [
         department: deptId,
         isDeleted: false,
       });
-      if (users.length !== ids.length) {
+      if (users?.length !== ids?.length) {
         throw new Error(
           "All assignees must belong to your organization and department"
         );
@@ -491,7 +491,7 @@ const routineTaskValidators = [
     .withMessage("Materials must be an array")
     .bail()
     .custom((materials) => {
-      if (materials.length > MAX_MATERIALS_PER_ENTITY) {
+      if (materials?.length > MAX_MATERIALS_PER_ENTITY) {
         throw new Error(
           `Materials cannot exceed ${MAX_MATERIALS_PER_ENTITY} items`
         );
@@ -593,7 +593,7 @@ export const validateCreateTask = [
       currency,
       date: date ? new Date(date) : undefined,
       materials:
-        Array.isArray(materials) && materials.length > 0
+        Array.isArray(materials) && materials?.length > 0
           ? materials.map((m) => ({
               materialId: m.materialId?.toString(),
               quantity:
@@ -707,7 +707,7 @@ export const validateGetAllTasks = [
     .custom((tags) => {
       for (const t of tags) {
         if (typeof t !== "string") throw new Error("All tags must be strings");
-        if (t.trim().length > MAX_TAG_LENGTH)
+        if (t.trim()?.length > MAX_TAG_LENGTH)
           throw new Error(
             `Each tag cannot exceed ${MAX_TAG_LENGTH} characters`
           );
@@ -785,15 +785,31 @@ export const validateGetTask = [
     .custom(async (taskId, { req }) => {
       const orgId = req.user?.organization?._id;
       const deptId = req.user?.department?._id;
-      const task = await BaseTask.findOne({
+      const deleted =
+        req.query?.deleted === "true" || req.query?.deleted === true;
+
+      // Build query based on deleted flag
+      let query = BaseTask.findOne({
         _id: taskId,
         organization: orgId,
         department: deptId,
-        isDeleted: false,
       });
+
+      if (deleted) {
+        query = query.withDeleted();
+      } else {
+        query = query.where({ isDeleted: false });
+      }
+
+      const task = await query.exec();
       if (!task) throw new Error("Task not found in your organization");
       return true;
     }),
+  query("deleted")
+    .optional()
+    .isBoolean()
+    .withMessage("Deleted must be a boolean")
+    .toBoolean(),
   handleValidationErrors,
 ];
 
@@ -890,7 +906,7 @@ export const validateUpdateTask = [
     .withMessage("watcherIds must be an array")
     .bail()
     .custom((ids) => {
-      if (ids.length > MAX_WATCHERS_PER_TASK) {
+      if (ids?.length > MAX_WATCHERS_PER_TASK) {
         throw new Error(
           `Watchers cannot exceed ${MAX_WATCHERS_PER_TASK} users`
         );
@@ -900,7 +916,7 @@ export const validateUpdateTask = [
     .bail()
     .customSanitizer((ids) => dedupeIds(ids))
     .custom(async (ids, { req }) => {
-      if (!ids || ids.length === 0) return true;
+      if (!ids || ids?.length === 0) return true;
       const orgId = req.user?.organization?._id;
       const users = await User.find({
         _id: { $in: ids },
@@ -908,7 +924,7 @@ export const validateUpdateTask = [
         role: { $in: HEAD_OF_DEPARTMENT_ROLES },
         isDeleted: false,
       });
-      if (users.length !== ids.length) {
+      if (users?.length !== ids?.length) {
         throw new Error(
           "All watchers must be SuperAdmin/Admin within your organization"
         );
@@ -922,18 +938,18 @@ export const validateUpdateTask = [
     .withMessage("Tags must be an array")
     .bail()
     .custom((tags) => {
-      if (tags.length > MAX_TAGS_PER_TASK) {
+      if (tags?.length > MAX_TAGS_PER_TASK) {
         throw new Error(`Tags cannot exceed ${MAX_TAGS_PER_TASK} items`);
       }
       const uniqueTags = new Set(
         tags.map((t) => t?.toLowerCase().trim()).filter(Boolean)
       );
-      if (uniqueTags.size !== tags.filter((t) => t && t.trim()).length) {
+      if (uniqueTags.size !== tags.filter((t) => t && t.trim())?.length) {
         throw new Error("Duplicate tags are not allowed");
       }
       for (const t of tags) {
         if (typeof t !== "string") throw new Error("All tags must be strings");
-        if (t.trim().length > MAX_TAG_LENGTH)
+        if (t.trim()?.length > MAX_TAG_LENGTH)
           throw new Error(
             `Each tag cannot exceed ${MAX_TAG_LENGTH} characters`
           );
@@ -979,7 +995,7 @@ export const validateUpdateTask = [
     .withMessage("Assignee IDs must be an array")
     .bail()
     .custom((array) => {
-      if (array && array.length > MAX_ASSIGNEES_PER_TASK) {
+      if (array && array?.length > MAX_ASSIGNEES_PER_TASK) {
         throw new Error(
           `Number of user assigned to a task cannot exceed ${MAX_ASSIGNEES_PER_TASK}`
         );
@@ -988,7 +1004,7 @@ export const validateUpdateTask = [
     })
     .customSanitizer((array) => dedupeIds(array))
     .custom(async (ids, { req }) => {
-      if (!ids || ids.length === 0) return true;
+      if (!ids || ids?.length === 0) return true;
       const orgId = req.user?.organization?._id;
       const deptId = req.user?.department?._id;
       const users = await User.find({
@@ -997,7 +1013,7 @@ export const validateUpdateTask = [
         department: deptId,
         isDeleted: false,
       });
-      if (users.length !== ids.length) {
+      if (users?.length !== ids?.length) {
         throw new Error(
           "All assignees must belong to your organization and department"
         );
@@ -1086,7 +1102,7 @@ export const validateUpdateTask = [
     .withMessage("Materials must be an array")
     .bail()
     .custom((materials) => {
-      if (materials.length > MAX_MATERIALS_PER_ENTITY) {
+      if (materials?.length > MAX_MATERIALS_PER_ENTITY) {
         throw new Error(
           `Materials cannot exceed ${MAX_MATERIALS_PER_ENTITY} items`
         );
@@ -1165,7 +1181,7 @@ export const validateUpdateTask = [
       currency,
       date: date ? new Date(date) : undefined,
       materials:
-        Array.isArray(materials) && materials.length > 0
+        Array.isArray(materials) && materials?.length > 0
           ? materials.map((m) => ({
               materialId: m.materialId?.toString(),
               quantity:
@@ -1295,7 +1311,7 @@ export const validateCreateTaskActivity = [
     .withMessage("Materials must be an array")
     .bail()
     .custom((materials) => {
-      if (materials.length > MAX_MATERIALS_PER_ENTITY) {
+      if (materials?.length > MAX_MATERIALS_PER_ENTITY) {
         throw new Error(`Materials cannot exceed ${MAX_MATERIALS_PER_ENTITY}`);
       }
       return true;
@@ -1360,7 +1376,7 @@ export const validateCreateTaskActivity = [
       activity: activity?.trim(),
       attachments: attachments || [],
       materials:
-        Array.isArray(materials) && materials.length > 0
+        Array.isArray(materials) && materials?.length > 0
           ? materials.map((m) => ({
               materialId: m.materialId?.toString(),
               quantity:
@@ -1519,7 +1535,7 @@ export const validateUpdateTaskActivity = [
     .withMessage("Materials must be an array")
     .bail()
     .custom((materials) => {
-      if (materials.length > MAX_MATERIALS_PER_ENTITY) {
+      if (materials?.length > MAX_MATERIALS_PER_ENTITY) {
         throw new Error(`Materials cannot exceed ${MAX_MATERIALS_PER_ENTITY}`);
       }
       return true;
@@ -1582,7 +1598,7 @@ export const validateUpdateTaskActivity = [
       activity: activity?.trim(),
       attachments: attachments || [],
       materials:
-        Array.isArray(materials) && materials.length > 0
+        Array.isArray(materials) && materials?.length > 0
           ? materials.map((m) => ({
               materialId: m.materialId?.toString(),
               quantity:
@@ -1765,27 +1781,27 @@ export const validateCreateTaskComment = [
     .withMessage("mentionIds must be an array")
     .bail()
     .custom((ids) => {
-      if (ids.length > MAX_MENTIONS_PER_COMMENT) {
+      if (ids?.length > MAX_MENTIONS_PER_COMMENT) {
         throw new Error(
           `You can only mention up to ${MAX_MENTIONS_PER_COMMENT} users`
         );
       }
       const unique = new Set(ids.map((i) => i?.toString()).filter(Boolean));
-      if (unique.size !== ids.length) {
+      if (unique.size !== ids?.length) {
         throw new Error("Duplicate mentions are not allowed");
       }
       return true;
     })
     .customSanitizer((ids) => dedupeIds(ids))
     .custom(async (ids, { req }) => {
-      if (!ids || ids.length === 0) return true;
+      if (!ids || ids?.length === 0) return true;
       const orgId = req.user?.organization?._id;
       const users = await User.find({
         _id: { $in: ids },
         organization: orgId,
         isDeleted: false,
       });
-      if (users.length !== ids.length) {
+      if (users?.length !== ids?.length) {
         throw new Error("All mentioned users must belong to your organization");
       }
       return true;
@@ -1979,27 +1995,27 @@ export const validateUpdateTaskComment = [
     .withMessage("mentionIds must be an array")
     .bail()
     .custom((ids) => {
-      if (ids.length > MAX_MENTIONS_PER_COMMENT) {
+      if (ids?.length > MAX_MENTIONS_PER_COMMENT) {
         throw new Error(
           `You can only mention up to ${MAX_MENTIONS_PER_COMMENT} users`
         );
       }
       const unique = new Set(ids.map((i) => i?.toString()).filter(Boolean));
-      if (unique.size !== ids.length) {
+      if (unique.size !== ids?.length) {
         throw new Error("Duplicate mentions are not allowed");
       }
       return true;
     })
     .customSanitizer((ids) => dedupeIds(ids))
     .custom(async (ids, { req }) => {
-      if (!ids || ids.length === 0) return true;
+      if (!ids || ids?.length === 0) return true;
       const orgId = req.user?.organization?._id;
       const users = await User.find({
         _id: { $in: ids },
         organization: orgId,
         isDeleted: false,
       });
-      if (users.length !== ids.length) {
+      if (users?.length !== ids?.length) {
         throw new Error("All mentioned users must belong to your organization");
       }
       return true;

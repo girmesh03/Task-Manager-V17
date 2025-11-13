@@ -71,7 +71,7 @@ export const createAttachment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Attachment created successfully",
       attachment: attachment,
@@ -140,7 +140,7 @@ export const getAttachment = asyncHandler(async (req, res, next) => {
     throw CustomError.notFound("Attachment not found", { attachmentId });
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     attachment: attachment,
   });
@@ -215,7 +215,7 @@ export const getAllAttachments = asyncHandler(async (req, res, next) => {
     Attachment.countDocuments(query),
   ]);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     attachments: attachments,
     pagination: {
@@ -289,7 +289,7 @@ export const updateAttachment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Attachment updated successfully",
       attachment: attachment,
@@ -339,7 +339,7 @@ export const deleteAttachment = asyncHandler(async (req, res, next) => {
 
     await session.commitTransaction();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Attachment deleted successfully",
       attachment: {

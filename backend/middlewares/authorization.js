@@ -326,17 +326,23 @@ const determineUserContext = async (req, user) => {
 
 const determineTaskContext = async (req, user) => {
   const { taskId } = req.params;
-  const { departmentId, assigneeId } = req.query;
+  const { departmentId, assigneeId, deleted } = req.query;
   const bodyDepartmentId = req.body.departmentId;
   const bodyAssigneeIds = req.body.assigneeIds || [];
 
   // For specific task operations
   if (taskId) {
     const { BaseTask } = await import("../models/BaseTask.js");
-    const task = await BaseTask.findOne({
-      _id: taskId,
-      isDeleted: false,
-    }).populate("department");
+
+    // Support fetching deleted tasks if deleted=true query param is present
+    let taskQuery = BaseTask.findOne({ _id: taskId });
+    if (deleted === "true" || deleted === true) {
+      taskQuery = taskQuery.withDeleted();
+    } else {
+      taskQuery = taskQuery.where({ isDeleted: false });
+    }
+
+    const task = await taskQuery.populate("department").exec();
 
     if (!task) return null;
 
@@ -414,14 +420,21 @@ const determineTaskContext = async (req, user) => {
 
 const determineTaskActivityContext = async (req, user) => {
   const { activityId, taskId } = req.params;
+  const { deleted } = req.query;
 
   // For specific activity operations
   if (activityId) {
     const { TaskActivity } = await import("../models/TaskActivity.js");
-    const activity = await TaskActivity.findOne({
-      _id: activityId,
-      isDeleted: false,
-    }).populate("department");
+
+    // Support fetching deleted activities if deleted=true query param is present
+    let activityQuery = TaskActivity.findOne({ _id: activityId });
+    if (deleted === "true" || deleted === true) {
+      activityQuery = activityQuery.withDeleted();
+    } else {
+      activityQuery = activityQuery.where({ isDeleted: false });
+    }
+
+    const activity = await activityQuery.populate("department").exec();
 
     if (!activity) return null;
 
@@ -442,10 +455,16 @@ const determineTaskActivityContext = async (req, user) => {
   // For activity creation on a task
   if (taskId) {
     const { BaseTask } = await import("../models/BaseTask.js");
-    const task = await BaseTask.findOne({
-      _id: taskId,
-      isDeleted: false,
-    });
+
+    // Support fetching deleted tasks if deleted=true query param is present
+    let taskQuery = BaseTask.findOne({ _id: taskId });
+    if (deleted === "true" || deleted === true) {
+      taskQuery = taskQuery.withDeleted();
+    } else {
+      taskQuery = taskQuery.where({ isDeleted: false });
+    }
+
+    const task = await taskQuery.exec();
 
     if (!task) return null;
 
@@ -464,15 +483,22 @@ const determineTaskActivityContext = async (req, user) => {
 const determineTaskCommentContext = async (req, user) => {
   const { commentId } = req.params;
   const { parentId } = req.body;
+  const { deleted } = req.query;
   const bodyMentionIds = req.body.mentionIds || [];
 
   // For specific comment operations
   if (commentId) {
     const { TaskComment } = await import("../models/TaskComment.js");
-    const comment = await TaskComment.findOne({
-      _id: commentId,
-      isDeleted: false,
-    }).populate("department");
+
+    // Support fetching deleted comments if deleted=true query param is present
+    let commentQuery = TaskComment.findOne({ _id: commentId });
+    if (deleted === "true" || deleted === true) {
+      commentQuery = commentQuery.withDeleted();
+    } else {
+      commentQuery = commentQuery.where({ isDeleted: false });
+    }
+
+    const comment = await commentQuery.populate("department").exec();
 
     if (!comment) return null;
 

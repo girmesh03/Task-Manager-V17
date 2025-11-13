@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 
 // Defaults based on environment
 const DEFAULT_ACCESS_EXPIRES_IN =
-  process.env.NODE_ENV === "production" ? "15m" : "1m";
+  process.env.NODE_ENV === "production" ? "15m" : "1h";
 const DEFAULT_REFRESH_EXPIRES_IN = "7d";
 
 const accessExpiresInEnv =

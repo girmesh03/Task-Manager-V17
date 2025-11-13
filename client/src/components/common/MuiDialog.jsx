@@ -52,7 +52,7 @@ const MuiDialog = ({
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const fullScreen = forceFullScreen || isMobile;
 
-  const handleClose = (event, reason) => {
+  const handleClose = (_event, reason) => {
     // Prevent closing on backdrop click if disabled
     if (disableBackdropClick && reason === "backdropClick") {
       return;
@@ -71,23 +71,28 @@ const MuiDialog = ({
       fullScreen={fullScreen}
       maxWidth={maxWidth}
       fullWidth
+      scroll="paper"
       aria-labelledby="dialog-title"
       aria-describedby="dialog-description"
       disableEnforceFocus
       disableRestoreFocus
-      // scroll="paper"
       sx={(theme) => ({
         "& .MuiDialog-paper": {
           backgroundImage: "none",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: fullScreen ? "100vh" : "90vh",
+          overflow: "hidden",
         },
         [theme.breakpoints.down("sm")]: {
           "& .MuiDialog-paper": {
             borderRadius: 0,
+            maxHeight: "100vh",
           },
         },
       })}
     >
-      {/* Dialog Title */}
+      {/* Dialog Title - Fixed at top */}
       <DialogTitle
         id="dialog-title"
         sx={{
@@ -95,6 +100,7 @@ const MuiDialog = ({
           alignItems: "center",
           justifyContent: "space-between",
           pb: 1,
+          flexShrink: 0,
         }}
       >
         <Box component="span" sx={{ fontWeight: 600 }}>
@@ -112,13 +118,17 @@ const MuiDialog = ({
         </IconButton>
       </DialogTitle>
 
-      {/* Dialog Content */}
+      {/* Dialog Content - Scrollable */}
       <DialogContent
         id="dialog-description"
         dividers
         sx={{
           position: "relative",
           minHeight: isLoading ? 200 : "auto",
+          flex: "1 1 auto",
+          overflow: "auto",
+          overflowY: "auto",
+          overflowX: "hidden",
         }}
       >
         {isLoading ? (
@@ -137,13 +147,14 @@ const MuiDialog = ({
         )}
       </DialogContent>
 
-      {/* Dialog Actions */}
+      {/* Dialog Actions - Fixed at bottom */}
       {actions && (
         <DialogActions
           sx={{
             px: 3,
             py: 2,
             gap: 1,
+            flexShrink: 0,
           }}
         >
           {actions}

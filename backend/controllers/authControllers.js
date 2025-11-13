@@ -79,7 +79,7 @@ export const registerOrganization = asyncHandler(async (req, res, next) => {
     await session.commitTransaction();
 
     // Send response
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message:
         "Organization, department and super admin user created successfully",
@@ -167,7 +167,7 @@ export const loginUser = asyncHandler(async (req, res, next) => {
   delete userResponse.organization.isDeleted;
   delete userResponse.department.isDeleted;
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Login successful",
     user: userResponse,
@@ -200,7 +200,7 @@ export const logoutUser = asyncHandler(async (req, res, next) => {
     sameSite: "strict",
   });
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Logout successful",
   });
@@ -270,7 +270,7 @@ export const getRefreshToken = asyncHandler(async (req, res, next) => {
     delete userResponse.department.isDeleted;
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Token refreshed successfully",
     user: userResponse,
@@ -299,22 +299,20 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
 
   if (!user) {
     // Don't reveal if user exists or not for security
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message:
         "If an account with that email exists, a password reset link has been sent.",
     });
-    return;
   }
 
   // Check if user's email preferences allow password reset emails
   if (!user.emailPreferences.enabled || !user.emailPreferences.passwordReset) {
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message:
         "If an account with that email exists, a password reset link has been sent.",
     });
-    return;
   }
 
   // Check organization and user status
@@ -342,7 +340,7 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
       userId: user._id,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Password reset link has been sent to your email address.",
     });
@@ -410,7 +408,7 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
   user.clearPasswordResetToken();
   await user.save();
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message:
       "Password has been reset successfully. You can now login with your new password.",

@@ -1,5 +1,5 @@
 // client/src/pages/Tasks.jsx
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
@@ -28,6 +28,7 @@ import MuiDialog from "../components/common/MuiDialog";
 import MuiDialogConfirm from "../components/common/MuiDialogConfirm";
 import TasksList from "../components/lists/TasksList";
 import TaskFilter from "../components/filters/TaskFilter";
+import CreateUpdateTask from "../components/forms/tasks/CreateUpdateTask";
 import {
   useGetTasksQuery,
   useDeleteTaskMutation,
@@ -41,6 +42,7 @@ import {
   setPage,
 } from "../redux/features/task/taskSlice";
 import { handleRTKError } from "../utils/errorHandler";
+import { useNavigate } from "react-router";
 
 /**
  * Tasks Page Component
@@ -63,6 +65,7 @@ const Tasks = () => {
   const dispatch = useDispatch();
   const filters = useSelector(selectTaskFilters);
   const pagination = useSelector(selectTaskPagination);
+  const navigate = useNavigate();
 
   // Dialog states
   const [filterOpen, setFilterOpen] = useState(false);
@@ -70,26 +73,35 @@ const Tasks = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedTaskType, setSelectedTaskType] = useState("");
+
+  // Ref for filter handlers
+  const filterHandlersRef = useRef(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
 
-  // Build query params
-  const queryParams = useMemo(
-    () => ({
-      ...Object.fromEntries(
-        Object.entries(filters).filter(
-          ([, v]) =>
-            v !== "" &&
-            v !== null &&
-            v !== false &&
-            !(Array.isArray(v) && v.length === 0)
-        )
-      ),
-      ...pagination,
-    }),
-    [filters, pagination]
-  );
+  // Build query params - properly filter out empty values
+  const queryParams = useMemo(() => {
+    const filteredFilters = Object.fromEntries(
+      Object.entries(filters).filter(([key, v]) => {
+        // Keep 'deleted' even if false (it's a valid filter value)
+        if (key === "deleted") return true;
+        // Filter out empty values
+        return (
+          v !== "" &&
+          v !== null &&
+          v !== undefined &&
+          !(Array.isArray(v) && v.length === 0)
+        );
+      })
+    );
+
+    return {
+      ...filteredFilters,
+      page: pagination.page,
+      limit: pagination.limit,
+    };
+  }, [filters, pagination]);
 
   // Fetch tasks data with error handling
   const { data, isLoading, isError, error, refetch, isFetching } =
@@ -107,7 +119,21 @@ const Tasks = () => {
   // Memoized handlers to prevent unnecessary re-renders
   const handleFilterChange = useCallback(
     (field, value) => {
-      dispatch(setFilters({ [field]: value }));
+      // Filter out empty values before setting filters (same logic as queryParams)
+      // Keep 'deleted' even if false (it's a valid filter value)
+      const shouldSet =
+        field === "deleted" ||
+        (value !== "" &&
+          value !== null &&
+          value !== undefined &&
+          !(Array.isArray(value) && value.length === 0));
+
+      if (shouldSet) {
+        dispatch(setFilters({ [field]: value }));
+      } else {
+        // Remove the filter if value is empty
+        dispatch(setFilters({ [field]: null }));
+      }
     },
     [dispatch]
   );
@@ -144,11 +170,18 @@ const Tasks = () => {
     setCreateMenuAnchor(null);
   }, []);
 
-  const handleView = useCallback((task) => {
-    // Navigate to task detail page (to be implemented in Phase 12)
-    console.log("View task:", task);
-    toast.info("Task detail page coming soon!");
-  }, []);
+  const handleView = useCallback(
+    (task) => {
+      // Pass deleted flag in URL if task is deleted
+      const isDeleted = task.isDeleted || task.deleted;
+      if (isDeleted) {
+        navigate(`/tasks/${task._id}?deleted=true`);
+      } else {
+        navigate(`/tasks/${task._id}`);
+      }
+    },
+    [navigate]
+  );
 
   const handleEdit = useCallback((task) => {
     setSelectedTask(task);
@@ -188,13 +221,28 @@ const Tasks = () => {
     }
   }, [restoreTask, selectedTask]);
 
-  // Success handler for form submission (will be used when forms are implemented)
-  // const handleSuccess = useCallback(() => {
-  //   setCreateDialogOpen(false);
-  //   setEditDialogOpen(false);
-  //   setSelectedTask(null);
-  //   setSelectedTaskType("");
-  // }, []);
+  // Success handler for form submission
+  const handleCreateSuccess = useCallback(() => {
+    setCreateDialogOpen(false);
+    setSelectedTaskType("");
+    toast.success("Task created successfully");
+  }, []);
+
+  const handleUpdateSuccess = useCallback(() => {
+    setEditDialogOpen(false);
+    setSelectedTask(null);
+    setSelectedTaskType("");
+    toast.success("Task updated successfully");
+  }, []);
+
+  // Filter dialog handlers
+  const handleApplyFilters = useCallback(() => {
+    setFilterOpen(false);
+  }, []);
+
+  const handleClearFiltersFromDialog = useCallback(() => {
+    handleClearFilters();
+  }, [handleClearFilters]);
 
   // Count active filters for badge
   const activeFiltersCount = useMemo(() => {
@@ -249,6 +297,7 @@ const Tasks = () => {
     );
   }
 
+  // console.log("tasks", tasks);
   return (
     <Box>
       {/* Header */}
@@ -375,14 +424,28 @@ const Tasks = () => {
         maxWidth="sm"
         actions={
           <>
-            <Button onClick={handleClearFilters}>Clear All</Button>
-            <Button variant="contained" onClick={() => setFilterOpen(false)}>
-              Apply
+            <Button onClick={() => filterHandlersRef.current?.clear()}>
+              Clear All
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                filterHandlersRef.current?.apply();
+                setFilterOpen(false);
+              }}
+            >
+              Apply Filters
             </Button>
           </>
         }
       >
-        <TaskFilter filters={filters} onFilterChange={handleFilterChange} />
+        <TaskFilter
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onApply={handleApplyFilters}
+          onClear={handleClearFiltersFromDialog}
+          filterHandlers={filterHandlersRef}
+        />
       </MuiDialog>
 
       {/* Create Task Dialog */}
@@ -390,16 +453,20 @@ const Tasks = () => {
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
         title={`Create ${selectedTaskType?.replace("Task", "")} Task`}
-        maxWidth="md"
+        maxWidth="sm"
+        actions={
+          <>
+            <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
+            <Button type="submit" form="task-form" variant="contained">
+              Create
+            </Button>
+          </>
+        }
       >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Task creation form will be implemented in the next phase.
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Selected type: {selectedTaskType}
-          </Typography>
-        </Box>
+        <CreateUpdateTask
+          taskType={selectedTaskType}
+          onSuccess={handleCreateSuccess}
+        />
       </MuiDialog>
 
       {/* Edit Task Dialog */}
@@ -407,16 +474,17 @@ const Tasks = () => {
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         title={`Edit ${selectedTaskType?.replace("Task", "")} Task`}
-        maxWidth="md"
+        maxWidth="sm"
+        actions={
+          <>
+            <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button type="submit" form="task-form" variant="contained">
+              Update
+            </Button>
+          </>
+        }
       >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Task editing form will be implemented in the next phase.
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Editing: {selectedTask?.title}
-          </Typography>
-        </Box>
+        <CreateUpdateTask task={selectedTask} onSuccess={handleUpdateSuccess} />
       </MuiDialog>
 
       {/* Delete Confirmation */}

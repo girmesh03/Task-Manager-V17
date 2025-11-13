@@ -1,7 +1,6 @@
 // client/src/redux/features/api.js
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { setCredentials } from "./auth/authSlice";
-import { handleAuthError, isAuthError } from "../../utils/errorHandler";
+import { setCredentials, clearCredentials } from "./auth/authSlice";
 import { toast } from "react-toastify";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -22,7 +21,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
   // Handle 401 Unauthorized - Token expired, try to refresh
   if (result.error && result.error.status === 401) {
-    console.log("Received 401 - attempting token refresh");
+    console.log("🔄 Received 401 - attempting token refresh");
 
     // Try to refresh the token
     const refreshResult = await baseQuery(
@@ -33,32 +32,69 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
     if (refreshResult.data) {
       // Token refreshed successfully
-      console.log("Token refreshed successfully");
+      console.log("✅ Token refreshed successfully");
       api.dispatch(setCredentials(refreshResult.data));
 
       // Retry the original request with new token
       result = await baseQuery(args, api, extraOptions);
     } else if (refreshResult.error) {
-      // Refresh failed - check if it's 401 or 403
-      if (refreshResult.error.status === 401) {
-        // Refresh token also expired - logout user
-        console.log("Refresh token expired - logging out");
-        handleAuthError(refreshResult.error, "api");
-      } else if (refreshResult.error.status === 403) {
-        // Forbidden - user doesn't have permission
-        console.log("Forbidden - insufficient permissions");
-        toast.error("You don't have permission to perform this action");
+      // Refresh failed - handle based on error status
+      const refreshStatus = refreshResult.error.status;
+
+      console.error(
+        "❌ Token refresh failed:",
+        refreshStatus,
+        refreshResult.error
+      );
+
+      if (refreshStatus === 401 || refreshStatus === 403) {
+        // Refresh token expired or forbidden - logout user
+        console.log("🚪 Refresh token expired/forbidden - logging out");
+
+        // Clear credentials
+        api.dispatch(clearCredentials());
+
+        // Reset API state to clear all cached data
+        api.dispatch({ type: "api/resetApiState" });
+
+        // Show user-friendly message
+        toast.error("Your session has expired. Please log in again.", {
+          toastId: "session-expired",
+          autoClose: 3000,
+        });
+
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
       } else {
-        // Other refresh errors - logout user
-        console.log("Token refresh failed - logging out");
-        handleAuthError(refreshResult.error, "api");
+        // Other refresh errors (network, server error, etc.)
+        console.error("⚠️ Unexpected refresh error - logging out");
+
+        // Clear credentials
+        api.dispatch(clearCredentials());
+
+        // Reset API state
+        api.dispatch({ type: "api/resetApiState" });
+
+        // Show error message
+        toast.error("Authentication failed. Please log in again.", {
+          toastId: "auth-failed",
+          autoClose: 3000,
+        });
+
+        // Redirect to login
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 500);
       }
     }
   }
-  // Handle 403 Forbidden - User doesn't have permission
+  // Handle 403 Forbidden - User doesn't have permission (but is authenticated)
   else if (result.error && result.error.status === 403) {
-    console.log("Received 403 - insufficient permissions");
-    toast.error("You don't have permission to perform this action");
+    console.warn("⛔ Received 403 - insufficient permissions");
+    // Don't logout for 403, just show error
+    // The error will be handled by the component
   }
 
   return result;

@@ -85,6 +85,13 @@ const router = createBrowserRouter([
             },
           },
           {
+            path: "tasks/:taskId",
+            lazy: async () => {
+              const m = await import("../pages/TaskDetails.jsx");
+              return { Component: m.default };
+            },
+          },
+          {
             path: "users",
             lazy: async () => {
               const m = await import("../pages/Users.jsx");

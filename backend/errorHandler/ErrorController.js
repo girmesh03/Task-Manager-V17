@@ -293,7 +293,7 @@ const globalErrorHandler = (error, req, res, next) => {
   }
 
   /* 6. respond */
-  res.status(handledError.statusCode || 500).json(errorResponse);
+  return res.status(handledError.statusCode || 500).json(errorResponse);
 };
 
 export default globalErrorHandler;

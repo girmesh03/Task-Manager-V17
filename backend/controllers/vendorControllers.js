@@ -65,7 +65,7 @@ export const createVendor = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "vendor:created", { vendorId: vendor._id });
 
     await session.commitTransaction();
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Vendor created successfully",
       vendor: vendor,
@@ -120,7 +120,7 @@ export const getAllVendors = asyncHandler(async (req, res, next) => {
 
   const result = await query.paginate(filter, options);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Vendors fetched successfully",
     pagination: {
@@ -205,7 +205,7 @@ export const getVendor = asyncHandler(async (req, res, next) => {
     { count: 0, estimatedCost: 0, actualCost: 0, byStatus: {} }
   );
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Vendor fetched successfully",
     vendor: {
@@ -297,7 +297,7 @@ export const updateVendor = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "vendor:updated", { vendorId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Vendor updated successfully",
       vendor: updated,
@@ -354,7 +354,7 @@ export const deleteVendor = asyncHandler(async (req, res, next) => {
     });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Vendor soft-deleted successfully",
       vendor: {
@@ -437,7 +437,7 @@ export const restoreVendor = asyncHandler(async (req, res, next) => {
     emitToOrganization(orgId, "vendor:restored", { vendorId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Vendor restored successfully",
       vendor: restored,

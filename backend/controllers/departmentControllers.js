@@ -66,7 +66,7 @@ export const createDepartment = asyncHandler(async (req, res, next) => {
     });
 
     await session.commitTransaction();
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Department created successfully",
       department: created,
@@ -123,7 +123,7 @@ export const getAllDepartments = asyncHandler(async (req, res, next) => {
 
   const result = await query.paginate(filter, options);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Departments fetched successfully",
     pagination: {
@@ -238,7 +238,7 @@ export const getDepartment = asyncHandler(async (req, res, next) => {
       .lean(),
   ]);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Department fetched successfully",
     department: {
@@ -335,7 +335,7 @@ export const updateDepartment = asyncHandler(async (req, res, next) => {
     emitToRecipients(recipientIds, "department:updated", { departmentId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Department updated successfully",
       department: updated,
@@ -393,7 +393,7 @@ export const deleteDepartment = asyncHandler(async (req, res, next) => {
     emitToDepartment(departmentId, "department:deleted", { departmentId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Department soft-deleted successfully",
       department: { departmentId, deletedAt: new Date().toISOString() },
@@ -476,7 +476,7 @@ export const restoreDepartment = asyncHandler(async (req, res, next) => {
     emitToDepartment(departmentId, "department:restored", { departmentId });
 
     await session.commitTransaction();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Department restored successfully",
       department: restored,

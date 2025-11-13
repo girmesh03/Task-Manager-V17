@@ -9,7 +9,11 @@ import {
   InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import { UI_MESSAGES, PAGINATION } from "../../utils/constants.js";
+import {
+  UI_MESSAGES,
+  PAGINATION,
+  HEAD_OF_DEPARTMENT_ROLES,
+} from "../../utils/constants.js";
 import { useGetDepartmentsQuery } from "../../redux/features/department/departmentApi";
 import { useGetUsersQuery } from "../../redux/features/user/userApi";
 import { useGetMaterialsQuery } from "../../redux/features/material/materialApi";
@@ -33,6 +37,7 @@ import { useGetVendorsQuery } from "../../redux/features/vendor/vendorApi";
  * @param {React.ReactNode} [props.startAdornment] - Icon or element at start
  * @param {boolean} [props.disabled] - Disable the input
  * @param {Object} [props.queryParams] - Additional query parameters for API
+ * @param {boolean} [props.watchersOnly] - For users: filter only SuperAdmin/Admin roles (for watchers)
  * @returns {JSX.Element}
  */
 const MuiResourceSelect = ({
@@ -47,8 +52,11 @@ const MuiResourceSelect = ({
   startAdornment,
   disabled = false,
   queryParams = {},
+  watchersOnly = false,
   ...muiProps
 }) => {
+  // Determine if this is a watchers field based on field name
+  const isWatchersField = name === "watcherIds" || watchersOnly;
   // Select appropriate query hook based on resource type
   const useResourceQuery = useMemo(() => {
     switch (resourceType) {
@@ -76,29 +84,63 @@ const MuiResourceSelect = ({
   const resources = useMemo(() => {
     if (!data) return [];
 
+    let items = [];
     switch (resourceType) {
       case "departments":
-        return data.departments || [];
+        items = data.departments || [];
+        break;
       case "users":
-        return data.users || [];
+        items = data.users || [];
+        // Filter for watchers: only SuperAdmin and Admin
+        if (isWatchersField) {
+          items = items.filter((user) =>
+            HEAD_OF_DEPARTMENT_ROLES.includes(user.role)
+          );
+        }
+        break;
       case "materials":
-        return data.materials || [];
+        items = data.materials || [];
+        break;
       case "vendors":
-        return data.vendors || [];
+        items = data.vendors || [];
+        break;
       default:
-        return [];
+        items = [];
     }
-  }, [data, resourceType]);
+    return items;
+  }, [data, resourceType, isWatchersField]);
 
-  // Transform resources to options format
+  // Transform resources to options format with proper labels
   const options = useMemo(() => {
-    return resources.map((resource) => ({
-      id: resource._id,
-      label:
-        resource.name || resource.fullName || resource.title || resource._id,
-      resource, // Keep full resource for additional data
-    }));
-  }, [resources]);
+    return resources.map((resource) => {
+      let label;
+
+      // Determine label based on resource type
+      switch (resourceType) {
+        case "users":
+          // Use fullName for users, fallback to firstName + lastName
+          label =
+            resource.fullName ||
+            `${resource.firstName || ""} ${resource.lastName || ""}`.trim() ||
+            resource.email ||
+            resource._id;
+          break;
+        case "departments":
+        case "materials":
+        case "vendors":
+          label = resource.name || resource._id;
+          break;
+        default:
+          label = resource.name || resource.title || resource._id;
+      }
+
+      return {
+        id: resource._id,
+        label,
+        resource, // Keep full resource for additional data
+      };
+    });
+  }, [resources, resourceType]);
 
   return (
     <Controller
@@ -196,6 +238,22 @@ const MuiResourceSelect = ({
                   },
                 }}
                 sx={(theme) => ({
+                  "& .MuiInputBase-root": {
+                    // Allow vertical expansion for multiple chips
+                    minHeight: "40px",
+                    height: "auto",
+                    alignItems: "flex-start",
+                    paddingTop: multiple ? "8px" : undefined,
+                    paddingBottom: multiple ? "8px" : undefined,
+                  },
+                  "& .MuiInputBase-input": {
+                    // Ensure input field aligns properly with chips
+                    minHeight: "24px",
+                  },
+                  "& .MuiAutocomplete-tag": {
+                    // Proper spacing for chips
+                    margin: "2px",
+                  },
                   "& .MuiButtonBase-root.MuiIconButton-root": {
                     border: "none",
                     backgroundColor: "transparent",
@@ -233,6 +291,7 @@ MuiResourceSelect.propTypes = {
   startAdornment: PropTypes.node,
   disabled: PropTypes.bool,
   queryParams: PropTypes.object,
+  watchersOnly: PropTypes.bool,
 };
 
 export default MuiResourceSelect;
