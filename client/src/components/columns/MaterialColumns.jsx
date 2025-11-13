@@ -54,7 +54,7 @@ export const getMaterialColumns = (actions = {}) => [
     field: "createdAt",
     headerName: "Added",
     width: 120,
-    valueFormatter: (value) => (value ? dayjs(value).format("MMM DD, YYYY") : "N/A"),
+    valueFormatter: (value) => (value ? formatDate(value) : "N/A"),
   },
   {
     field: "isDeleted",

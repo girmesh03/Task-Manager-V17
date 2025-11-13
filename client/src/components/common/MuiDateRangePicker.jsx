@@ -84,13 +84,13 @@ const MuiDateRangePicker = ({
             field: { onChange, value, ref },
             fieldState: { error },
           }) => {
-            // Convert value to dayjs object if it exists
-            const dayjsValue = value ? dayjs(value) : null;
+            // Convert UTC value to local timezone for display
+            const dayjsValue = value ? utcToLocal(value) : null;
 
             const handleChange = (newValue) => {
-              // Convert dayjs object to ISO string for form state
+              // Convert local time back to UTC ISO string for storage
               onChange(
-                newValue && newValue.isValid() ? newValue.toISOString() : null
+                newValue && newValue.isValid() ? localToUtc(newValue) : null
               );
             };
 
@@ -144,13 +144,13 @@ const MuiDateRangePicker = ({
             field: { onChange, value, ref },
             fieldState: { error },
           }) => {
-            // Convert value to dayjs object if it exists
-            const dayjsValue = value ? dayjs(value) : null;
+            // Convert UTC value to local timezone for display
+            const dayjsValue = value ? utcToLocal(value) : null;
 
             const handleChange = (newValue) => {
-              // Convert dayjs object to ISO string for form state
+              // Convert local time back to UTC ISO string for storage
               onChange(
-                newValue && newValue.isValid() ? newValue.toISOString() : null
+                newValue && newValue.isValid() ? localToUtc(newValue) : null
               );
             };
 

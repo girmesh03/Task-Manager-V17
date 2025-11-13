@@ -56,17 +56,15 @@ const MuiDatePicker = ({
       control={control}
       rules={rules}
       render={({ field: { onChange, value, ref }, fieldState: { error } }) => {
-        // Convert value to dayjs object if it exists
-        // Handle both ISO strings and Date objects
-        const dayjsValue = value ? dayjs(value) : null;
+         // Convert UTC value to local timezone for display
+         const dayjsValue = value ? utcToLocal(value) : null;
 
-        const handleChange = (newValue) => {
-          // Convert dayjs object to ISO string for form state
-          // This ensures consistent date storage regardless of timezone
-          onChange(
-            newValue && newValue.isValid() ? newValue.toISOString() : null
-          );
-        };
+         const handleChange = (newValue) => {
+           // Convert local time back to UTC ISO string for storage
+           onChange(
+             newValue && newValue.isValid() ? localToUtc(newValue) : null
+           );
+         };
 
         return (
           <DatePicker

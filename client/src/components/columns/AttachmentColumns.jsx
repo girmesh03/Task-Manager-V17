@@ -76,7 +76,7 @@ export const getAttachmentColumns = (actions = {}) => [
     field: "createdAt",
     headerName: "Uploaded",
     width: 120,
-    valueFormatter: (value) => (value ? dayjs(value).format("MMM DD, YYYY") : "N/A"),
+    valueFormatter: (value) => (value ? formatDate(value) : "N/A"),
   },
   {
     field: "download",

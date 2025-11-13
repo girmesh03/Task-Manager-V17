@@ -92,17 +92,17 @@ export const getTaskColumns = (actions = {}) => [
     },
   },
   {
-    field: "dueDate",
-    headerName: "Due Date",
-    width: 120,
-    valueFormatter: (value) => (value ? dayjs(value).format("MMM DD, YYYY") : "N/A"),
-  },
-  {
-    field: "date",
-    headerName: "Date",
-    width: 120,
-    valueFormatter: (value) => (value ? dayjs(value).format("MMM DD, YYYY") : "N/A"),
-  },
+     field: "dueDate",
+     headerName: "Due Date",
+     width: 120,
+     valueFormatter: (value) => (value ? formatDate(value) : "N/A"),
+   },
+   {
+     field: "date",
+     headerName: "Date",
+     width: 120,
+     valueFormatter: (value) => (value ? formatDate(value) : "N/A"),
+   },
   {
     field: "department",
     headerName: "Department",
