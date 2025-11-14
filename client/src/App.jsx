@@ -6,25 +6,25 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import router from "./router/routes.jsx";
 import AppTheme from "./theme/AppTheme.jsx";
-// import AuthProvider from "./components/auth/AuthProvider";
+import AuthProvider from "./components/auth/AuthProvider";
 
 const App = () => {
   return (
     <AppTheme>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <CssBaseline />
-        {/* <AuthProvider> */}
-        <Box
-          sx={{
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            backgroundColor: "background.default",
-          }}
-        >
-          <RouterProvider router={router} />
-        </Box>
-        {/* </AuthProvider> */}
+        <AuthProvider>
+          <Box
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "background.default",
+            }}
+          >
+            <RouterProvider router={router} />
+          </Box>
+        </AuthProvider>
       </LocalizationProvider>
     </AppTheme>
   );

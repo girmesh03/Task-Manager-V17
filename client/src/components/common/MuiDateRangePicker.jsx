@@ -9,6 +9,7 @@ import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import localizedFormat from "dayjs/plugin/localizedFormat";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import { utcToLocal, localToUtc } from "../../utils/dateUtils";
 
 // Configure dayjs plugins
 dayjs.extend(utc);
@@ -19,27 +20,8 @@ dayjs.extend(isSameOrAfter);
 /**
  * MuiDateRangePicker Component
  *
- * Date range selection component with start and end date pickers.
- * Validates that end date is greater than or equal to start date.
- *
- * Features:
- * - Localized date formats
- * - Timezone support
- * - Automatic validation (end >= start)
- * - React Hook Form integration
- * - Min/Max date constraints
- *
- * @param {Object} props
- * @param {string} props.startName - Field name for start date
- * @param {string} props.endName - Field name for end date
- * @param {Object} props.control - React Hook Form control object
- * @param {Object} [props.rules] - Validation rules
- * @param {string} [props.label] - Label for the date range
- * @param {boolean} [props.disabled] - Disable both pickers
- * @param {string} [props.format] - Date format (default: "MM/DD/YYYY")
- * @param {Date|string} [props.minDate] - Minimum selectable date
- * @param {Date|string} [props.maxDate] - Maximum selectable date
- * @returns {JSX.Element}
+ * Provides timezone-aware start/end date pickers with React Hook Form.
+ * Ensures the end date is always the same as or after the start date.
  */
 const MuiDateRangePicker = ({
   startName,
@@ -75,23 +57,20 @@ const MuiDateRangePicker = ({
           flexDirection: { xs: "column", sm: "row" },
         }}
       >
-        {/* Start Date Picker */}
         <Controller
           name={startName}
           control={control}
           rules={rules}
-          render={({
-            field: { onChange, value, ref },
-            fieldState: { error },
-          }) => {
-            // Convert UTC value to local timezone for display
+          render={({ field: { onChange, value, ref }, fieldState: { error } }) => {
             const dayjsValue = value ? utcToLocal(value) : null;
 
             const handleChange = (newValue) => {
-              // Convert local time back to UTC ISO string for storage
-              onChange(
-                newValue && newValue.isValid() ? localToUtc(newValue) : null
-              );
+              if (!newValue || !newValue.isValid()) {
+                onChange(null);
+                return;
+              }
+
+              onChange(localToUtc(newValue));
             };
 
             return (
@@ -122,7 +101,6 @@ const MuiDateRangePicker = ({
           }}
         />
 
-        {/* End Date Picker */}
         <Controller
           name={endName}
           control={control}
@@ -131,27 +109,32 @@ const MuiDateRangePicker = ({
             validate: {
               ...rules?.validate,
               afterStartDate: (value, formValues) => {
-                const startDate = formValues[startName];
-                if (!startDate || !value) return true;
+                const startValue = formValues?.[startName];
+                if (!startValue || !value) {
+                  return true;
+                }
+
+                const start = utcToLocal(startValue);
+                const end = utcToLocal(value);
+
                 return (
-                  dayjs(value).isSameOrAfter(dayjs(startDate), "day") ||
+                  end.isSame(start, "day") ||
+                  end.isAfter(start, "day") ||
                   "End date must be after or equal to start date"
                 );
               },
             },
           }}
-          render={({
-            field: { onChange, value, ref },
-            fieldState: { error },
-          }) => {
-            // Convert UTC value to local timezone for display
+          render={({ field: { onChange, value, ref }, fieldState: { error } }) => {
             const dayjsValue = value ? utcToLocal(value) : null;
 
             const handleChange = (newValue) => {
-              // Convert local time back to UTC ISO string for storage
-              onChange(
-                newValue && newValue.isValid() ? localToUtc(newValue) : null
-              );
+              if (!newValue || !newValue.isValid()) {
+                onChange(null);
+                return;
+              }
+
+              onChange(localToUtc(newValue));
             };
 
             return (

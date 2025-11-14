@@ -7,6 +7,7 @@ import "dayjs/locale/en";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import localizedFormat from "dayjs/plugin/localizedFormat";
+import { utcToLocal, localToUtc } from "../../utils/dateUtils";
 
 // Configure dayjs plugins
 dayjs.extend(utc);
@@ -17,14 +18,7 @@ dayjs.extend(localizedFormat);
  * MuiDatePicker Component
  *
  * Wraps MUI X DatePicker with React Hook Form integration.
- * Uses dayjs for date h[prling with proper localization support.
- *
- * Features:
- * - Localized date formats
- * - Timezone support
- * - React Hook Form integration
- * - Validation support
- * - Min/Max date constraints
+ * Provides timezone-aware conversion between UTC (API) and local time (UI).
  *
  * @param {Object} props
  * @param {string} props.name - Field name for React Hook Form
@@ -56,15 +50,16 @@ const MuiDatePicker = ({
       control={control}
       rules={rules}
       render={({ field: { onChange, value, ref }, fieldState: { error } }) => {
-         // Convert UTC value to local timezone for display
-         const dayjsValue = value ? utcToLocal(value) : null;
+        const dayjsValue = value ? utcToLocal(value) : null;
 
-         const handleChange = (newValue) => {
-           // Convert local time back to UTC ISO string for storage
-           onChange(
-             newValue && newValue.isValid() ? localToUtc(newValue) : null
-           );
-         };
+        const handleChange = (newValue) => {
+          if (!newValue || !newValue.isValid()) {
+            onChange(null);
+            return;
+          }
+
+          onChange(localToUtc(newValue));
+        };
 
         return (
           <DatePicker
