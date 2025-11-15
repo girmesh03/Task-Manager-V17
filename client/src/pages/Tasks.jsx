@@ -484,7 +484,9 @@ const Tasks = () => {
           </>
         }
       >
-        <CreateUpdateTask task={selectedTask} onSuccess={handleUpdateSuccess} />
+        <RTKQueryErrorBoundary>
+          <CreateUpdateTask task={selectedTask} onSuccess={handleUpdateSuccess} />
+        </RTKQueryErrorBoundary>
       </MuiDialog>
 
       {/* Delete Confirmation */}

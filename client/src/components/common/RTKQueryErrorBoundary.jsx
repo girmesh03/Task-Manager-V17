@@ -179,19 +179,4 @@ class RTKQueryErrorBoundary extends Component {
   }
 }
 
-/**
- * Hook wrapper for functional components
- */
-export const withRTKQueryErrorBoundary = (Component, options = {}) => {
-  const WrappedComponent = (props) => (
-    <RTKQueryErrorBoundary {...options}>
-      <Component {...props} />
-    </RTKQueryErrorBoundary>
-  );
-
-  WrappedComponent.displayName = `withRTKQueryErrorBoundary(${Component.displayName || Component.name})`;
-  
-  return WrappedComponent;
-};
-
 export default RTKQueryErrorBoundary;

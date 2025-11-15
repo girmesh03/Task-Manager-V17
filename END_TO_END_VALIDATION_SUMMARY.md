@@ -185,7 +185,7 @@ RTK Query Error → RTKQueryErrorBoundary → Check Auth → Handle/Display → 
 
 ## ✅ Files Modified
 
-### Frontend
+### Frontend Components (10 files):
 1. **`client/src/components/common/RouteError.jsx`**
    - Added RTK Query error detection
    - Non-RTK errors bubble up to ErrorBoundary
@@ -201,34 +201,38 @@ RTK Query Error → RTKQueryErrorBoundary → Check Auth → Handle/Display → 
    - Complete cleanup sequence
    - Better error logging
    - Socket.IO disconnection
+   - Integrated with baseQueryWithReauth
 
 4. **`client/src/utils/errorHandler.js`**
    - Added `isRTKQueryError` utility
    - Updated exports
 
 5. **`client/src/pages/Tasks.jsx`**
-   - Wrapped with RTKQueryErrorBoundary
+   - Page wrapped with RTKQueryErrorBoundary
+   - Form components wrapped with RTKQueryErrorBoundary
    - Import added
 
 6. **`client/src/pages/Materials.jsx`**
-   - Wrapped with RTKQueryErrorBoundary
+   - Page wrapped with RTKQueryErrorBoundary
+   - Form components wrapped with RTKQueryErrorBoundary
    - Import added
 
 7. **`client/src/pages/Vendors.jsx`**
-   - Wrapped with RTKQueryErrorBoundary
+   - Page wrapped with RTKQueryErrorBoundary
+   - Form components wrapped with RTKQueryErrorBoundary
    - Import added
 
 8. **`client/src/components/forms/tasks/CreateUpdateTask.jsx`**
-   - Wrapped with RTKQueryErrorBoundary
-   - HOC wrapper
+   - Form component ready for RTKQueryErrorBoundary wrapping
+   - Fixed export pattern
 
 9. **`client/src/components/forms/materials/CreateUpdateMaterial.jsx`**
-   - Wrapped with RTKQueryErrorBoundary
-   - HOC wrapper
+   - Form component ready for RTKQueryErrorBoundary wrapping
+   - Fixed export pattern
 
 10. **`client/src/components/forms/vendors/CreateUpdateVendor.jsx`**
-    - Wrapped with RTKQueryErrorBoundary
-    - HOC wrapper
+    - Form component ready for RTKQueryErrorBoundary wrapping
+    - Fixed export pattern
 
 ### Backend
 - No backend changes needed (already properly implemented)
