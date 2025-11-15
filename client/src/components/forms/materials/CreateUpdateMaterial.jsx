@@ -186,4 +186,12 @@ CreateUpdateMaterial.propTypes = {
   onCancel: PropTypes.func.isRequired,
 };
 
-export default CreateUpdateMaterial;
+const WrappedCreateUpdateMaterial = (props) => (
+  <RTKQueryErrorBoundary>
+    <CreateUpdateMaterial {...props} />
+  </RTKQueryErrorBoundary>
+);
+
+WrappedCreateUpdateMaterial.propTypes = CreateUpdateMaterial.propTypes;
+
+export default WrappedCreateUpdateMaterial;

@@ -163,4 +163,12 @@ CreateUpdateVendor.propTypes = {
   onCancel: PropTypes.func.isRequired,
 };
 
-export default CreateUpdateVendor;
+const WrappedCreateUpdateVendor = (props) => (
+  <RTKQueryErrorBoundary>
+    <CreateUpdateVendor {...props} />
+  </RTKQueryErrorBoundary>
+);
+
+WrappedCreateUpdateVendor.propTypes = CreateUpdateVendor.propTypes;
+
+export default WrappedCreateUpdateVendor;

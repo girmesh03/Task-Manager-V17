@@ -491,4 +491,12 @@ CreateUpdateTask.propTypes = {
   onSuccess: PropTypes.func.isRequired,
 };
 
-export default CreateUpdateTask;
+const WrappedCreateUpdateTask = (props) => (
+  <RTKQueryErrorBoundary>
+    <CreateUpdateTask {...props} />
+  </RTKQueryErrorBoundary>
+);
+
+WrappedCreateUpdateTask.propTypes = CreateUpdateTask.propTypes;
+
+export default WrappedCreateUpdateTask;
