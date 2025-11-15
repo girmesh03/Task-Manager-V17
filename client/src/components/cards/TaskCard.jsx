@@ -22,10 +22,13 @@ import PersonIcon from "@mui/icons-material/Person";
 import BusinessIcon from "@mui/icons-material/Business";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
+import {
+  formatDate,
+  formatRelativeTime,
+  isPast,
+  utcToLocal,
+} from "../../utils/dateUtils";
 import { TASK_STATUS, TASK_PRIORITY } from "../../utils/constants";
-
-dayjs.extend(relativeTime);
 
 /**
  * TaskCard Component - Memoized for performance
@@ -67,9 +70,9 @@ const TaskCard = ({ task, onView, onEdit, onDelete, onRestore }) => {
 
   const getDaysUntilDue = (dueDate) => {
     if (!dueDate) return null;
-    // console.log("dueDate", dueDate);
-    const now = dayjs();
-    const due = dayjs(dueDate);
+
+    const now = dayjs().startOf("day");
+    const due = utcToLocal(dueDate).startOf("day");
     const diff = due.diff(now, "day");
 
     if (diff < 0) return `${Math.abs(diff)} days overdue`;
@@ -158,16 +161,16 @@ const TaskCard = ({ task, onView, onEdit, onDelete, onRestore }) => {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CalendarTodayIcon fontSize="small" color="action" />
                 <Typography variant="caption" color="text.secondary">
-                  {dayjs(task.dueDate).format("MMM DD, YYYY")}
+                  {formatDate(task.dueDate)}
                 </Typography>
-                <Chip
-                  label={getDaysUntilDue(task.dueDate)}
-                  size="small"
-                  color={
-                    dayjs(task.dueDate).isBefore(dayjs()) ? "error" : "default"
-                  }
-                  variant="outlined"
-                />
+                <Tooltip title={formatRelativeTime(task.dueDate)}>
+                  <Chip
+                    label={getDaysUntilDue(task.dueDate)}
+                    size="small"
+                    color={isPast(task.dueDate) ? "error" : "default"}
+                    variant="outlined"
+                  />
+                </Tooltip>
               </Box>
             )}
 
@@ -176,7 +179,7 @@ const TaskCard = ({ task, onView, onEdit, onDelete, onRestore }) => {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <CalendarTodayIcon fontSize="small" color="action" />
               <Typography variant="caption" color="text.secondary">
-                {dayjs(task.date).format("MMM DD, YYYY")}
+                {formatDate(task.date)}
               </Typography>
             </Box>
           )}
