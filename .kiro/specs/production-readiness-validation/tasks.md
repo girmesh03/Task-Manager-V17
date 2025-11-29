@@ -169,7 +169,7 @@
   - **Tests:** Property tests for password hashing, sensitive field exclusion, cascade delete, use --testPathPatterns instead of --testPathPattern, wait until the test complete
   - _Requirements: 2.1-2.6, 6-11, 12-17, 74.1, 32, 46, 47, 55, 101-105, 213-224_
 
-- [ ] 11. Organization Model Implementation
+- [x] 11. Organization Model Implementation
 
   - Include backend/docs/\*, read and understand what have been done on the previous codebase tasks.
   - Validate each organization schema fields, methods and static methods
@@ -189,7 +189,7 @@
   - **Tests:** Property tests for cascade delete to all children, platform org identification, use --testPathPatterns instead of --testPathPattern, wait until the test complete
   - _Requirements: 2.1-2.6, 6-11, 12-17, 74.1, 29, 100, 106-109, 225-233_
 
-- [ ] 12. Department Model Implementation
+- [x] 12. Department Model Implementation
 
   - Include backend/docs/\*, read and understand what have been done on the previous codebase tasks.
   - Validate each deparment schema fields, methods and static methods
