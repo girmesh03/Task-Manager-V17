@@ -41,7 +41,7 @@ import validateEnvironment, {
 } from "./utils/validateEnv.js";
 
 import app from "./app.js";
-import connectDB from "./config/db.js";
+import { connectDB, disconnectDB } from "./config/db.js";
 import cleanSeedSetup from "./mock/cleanSeedSetup.js";
 import corsOptions from "./config/corsOptions.js";
 import setupSocketIO from "./utils/socket.js";
@@ -207,7 +207,7 @@ const shutdown = async (signal) => {
 
     // Step 3: Close MongoDB connection
     logDatabase("Closing MongoDB connection...");
-    await mongoose.disconnect();
+    await disconnectDB();
     logDatabase("MongoDB connection closed");
 
     // Step 4: Log email queue status
