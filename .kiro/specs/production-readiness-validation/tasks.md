@@ -107,7 +107,7 @@
   - **Tests:** Test health endpoint response, probe endpoints, use --testPathPatterns instead of --testPathPattern, wait until the test complete
   - _Requirements: 2.1-2.6, 6-11, 12-17, 74.1, 26, 177, 179, 307_
 
-- [ ] 8. Configuration - MongoDB Connection
+- [x] 8. Configuration - MongoDB Connection
 
   - Include backend/docs/\*, read and understand what have been done on the previous codebase tasks.
   - Configure connection pooling (minPoolSize: 5, maxPoolSize: 50)
