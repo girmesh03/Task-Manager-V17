@@ -373,7 +373,6 @@ userSchema.index(
     unique: true,
     partialFilterExpression: {
       role: { $in: HEAD_OF_DEPARTMENT_ROLES },
-      isHod: true,
       isDeleted: false,
     },
   }
@@ -483,15 +482,11 @@ userSchema.statics.softDeleteByIdWithCascade = async function (
     }
   }
 
-  if (
-    userToDelete.isHod &&
-    HEAD_OF_DEPARTMENT_ROLES.includes(userToDelete.role)
-  ) {
+  if (HEAD_OF_DEPARTMENT_ROLES.includes(userToDelete.role)) {
     const hodCount = await this.countDocuments({
       organization: userToDelete.organization,
       department: userToDelete.department,
       role: { $in: HEAD_OF_DEPARTMENT_ROLES },
-      isHod: true,
       _id: { $ne: userId },
       isDeleted: false,
     }).session(session);
