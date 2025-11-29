@@ -38,10 +38,11 @@ export const authorize = (resource, operation) => {
         );
       }
 
-      // Determine if user is from platform organization
-      const isPlatformUser =
-        userOrganization._id.toString() ===
-        process.env.PLATFORM_ORGANIZATION_ID;
+      // Determine if user is a platform user based on flags/organization
+      const isPlatformUser = Boolean(
+        user.isPlatformUser ||
+          (userOrganization && userOrganization.isPlatformOrg === true)
+      );
 
       let hasPermission = false;
       let scope = "org";

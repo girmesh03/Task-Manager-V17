@@ -200,12 +200,6 @@ organizationSchema.pre("save", async function (next) {
   try {
     const session = this.$session?.();
 
-    // Set isPlatformOrg based on PLATFORM_ORGANIZATION_ID
-    if (this.isNew) {
-      const platformOrgId = process.env.PLATFORM_ORGANIZATION_ID;
-      this.isPlatformOrg = this._id.toString() === platformOrgId;
-    }
-
     if (this.createdBy) {
       const { User } = await import("./User.js");
 

@@ -1,14 +1,24 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
+// Increase MongoMemoryServer startup timeout to be more robust on slower environments (e.g. Windows)
+if (!process.env.MONGOMS_STARTUP_TIMEOUT) {
+  process.env.MONGOMS_STARTUP_TIMEOUT = "60000"; // 60 seconds
+}
+
 // Global test setup for MongoDB Memory Server
 let mongoServer;
+const hasExternalDbUri = Boolean(process.env.MONGODB_URI);
+const isWindows = process.platform === "win32";
 
 // Setup before all tests
 beforeAll(async () => {
+  // Decide whether to use in-memory DB or external MongoDB
+  const useMemoryDb =
+    process.env.USE_MEMORY_DB === "true" ||
+    (!isWindows && !hasExternalDbUri && process.env.USE_MEMORY_DB !== "false");
 
-  // Only start MongoDB Memory Server if not in CI or if explicitly requested
-  if (process.env.USE_MEMORY_DB !== "false") {
+  if (useMemoryDb) {
     try {
       // Start MongoDB Memory Server with optimized settings
       mongoServer = await MongoMemoryServer.create({
@@ -31,18 +41,37 @@ beforeAll(async () => {
       });
 
       console.log("Connected to MongoDB Memory Server for testing");
+      return;
     } catch (error) {
       console.warn(
-        "MongoDB Memory Server failed to start, using mock connection:",
+        "MongoDB Memory Server failed to start, falling back to external or mock connection:",
         error.message
       );
-      // Fallback to mock connection for structure tests
+    }
+  }
+
+  // Fallback: use external MongoDB if URI is provided
+  if (hasExternalDbUri) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      console.log(
+        "Connected to external MongoDB for testing:",
+        process.env.MONGODB_URI
+      );
+    } catch (error) {
+      console.warn(
+        "Failed to connect to external MongoDB for tests, using mock connection:",
+        error.message
+      );
       mongoose.connection.readyState = 1; // Mock connected state
     }
   } else {
-    console.log("Skipping MongoDB Memory Server (USE_MEMORY_DB=false)");
-    // Mock connection for structure validation tests
-    mongoose.connection.readyState = 1;
+    console.warn(
+      "No in-memory MongoDB and no MONGODB_URI provided. Tests will run without a real database connection. Ensure MONGODB_URI is set or USE_MEMORY_DB=true if you need database-backed tests."
+    );
   }
 }, 120000); // Increase timeout for MongoDB download
 
@@ -88,8 +117,11 @@ global.testUtils = {
     const { Organization } = await import("../models/index.js");
     return await Organization.create({
       name: "Test Organization",
+      description: "Test organization for automated tests",
       email: "test@example.com",
       phone: "+1234567890",
+      address: "123 Test Street",
+      industry: "Hospitality",
       isPlatformOrg: false,
     });
   },
@@ -99,6 +131,7 @@ global.testUtils = {
     const { Department } = await import("../models/index.js");
     return await Department.create({
       name: "Test Department",
+      description: "Test department for automated tests",
       organization: organizationId,
     });
   },
@@ -109,11 +142,13 @@ global.testUtils = {
     return await User.create({
       firstName: "Test",
       lastName: "User",
+      position: options.position || "Test Position",
       email: options.email || "testuser@example.com",
-      password: "TestPassword123!",
+      password: options.password || "TestPassword123!",
       organization: organizationId,
       department: departmentId,
-      role: options.role || "EMPLOYEE",
+      role: options.role || "User",
+      joinedAt: options.joinedAt || new Date(),
       isPlatformUser: options.isPlatformUser || false,
       isHod: options.isHod || false,
       ...options,

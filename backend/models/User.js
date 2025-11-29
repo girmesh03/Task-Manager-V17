@@ -21,6 +21,7 @@ import {
   HEAD_OF_DEPARTMENT_ROLES,
   SUPER_ADMIN_ROLE,
   DEFAULT_USER_ROLE,
+  PHONE_REGEX,
 } from "../utils/constants.js";
 import { isDateNotInFuture } from "../utils/helpers.js";
 
@@ -125,6 +126,23 @@ const userSchema = new mongoose.Schema(
         `Email must be less than ${MAX_EMAIL_LENGTH} characters`,
       ],
     },
+    phone: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: (v) => !v || PHONE_REGEX.test(v),
+        message:
+          "Phone number must be a valid E.164 number (e.g. +1234567890)",
+      },
+    },
+    status: {
+      type: String,
+      enum: {
+        values: ["online", "offline", "away"],
+        message: "Status must be one of: online, offline, away",
+      },
+      default: "offline",
+    },
     password: {
       type: String,
       required: [true, "Password is required"],
@@ -208,7 +226,6 @@ const userSchema = new mongoose.Schema(
           const birthDate = new Date(v);
           if (isNaN(birthDate.getTime())) return false;
 
-          // Fixed: Use proper future date check
           return isDateNotInFuture(v);
         },
         message: "dateOfBirth cannot be in the future",
@@ -223,7 +240,6 @@ const userSchema = new mongoose.Schema(
           const joinDate = new Date(v);
           if (isNaN(joinDate.getTime())) return false;
 
-          // Fixed: Use proper future date check
           return isDateNotInFuture(v);
         },
         message: "joinedAt cannot be in the future",
@@ -267,10 +283,36 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    refreshToken: {
+      type: String,
+      select: false,
+    },
+    refreshTokenExpiry: {
+      type: Date,
+      select: false,
+    },
+    lastLogin: {
+      type: Date,
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+      min: 0,
+      select: false,
+    },
+    lockUntil: {
+      type: Date,
+      select: false,
+    },
     isPlatformUser: {
       type: Boolean,
       default: false,
       immutable: true,
+      index: true,
+    },
+    isHod: {
+      type: Boolean,
+      default: false,
       index: true,
     },
   },
@@ -288,6 +330,10 @@ const userSchema = new mongoose.Schema(
         delete ret.deletedBy;
         delete ret.passwordResetToken;
         delete ret.passwordResetExpires;
+        delete ret.refreshToken;
+        delete ret.refreshTokenExpiry;
+        delete ret.failedLoginAttempts;
+        delete ret.lockUntil;
         return ret;
       },
     },
@@ -302,6 +348,10 @@ const userSchema = new mongoose.Schema(
         delete ret.deletedBy;
         delete ret.passwordResetToken;
         delete ret.passwordResetExpires;
+        delete ret.refreshToken;
+        delete ret.refreshTokenExpiry;
+        delete ret.failedLoginAttempts;
+        delete ret.lockUntil;
         return ret;
       },
     },
@@ -323,6 +373,7 @@ userSchema.index(
     unique: true,
     partialFilterExpression: {
       role: { $in: HEAD_OF_DEPARTMENT_ROLES },
+      isHod: true,
       isDeleted: false,
     },
   }
@@ -349,7 +400,6 @@ userSchema.pre("save", async function (next) {
   try {
     const session = this.$session?.();
 
-    // Set isPlatformUser based on organization's isPlatformOrg
     if (this.isNew && this.organization) {
       const { Organization } = await import("./Organization.js");
       const org = await Organization.findById(this.organization).session(
@@ -358,7 +408,6 @@ userSchema.pre("save", async function (next) {
       this.isPlatformUser = org?.isPlatformOrg || false;
     }
 
-    // Hash password if modified
     if (this.isModified("password")) {
       this.password = await bcrypt.hash(this.password, 12);
     }
@@ -380,24 +429,19 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 };
 
 userSchema.methods.generatePasswordResetToken = function () {
-  // Generate random token
   const resetToken =
     Math.random().toString(36).substring(2, 15) +
     Math.random().toString(36).substring(2, 15) +
     Date.now().toString(36);
 
-  // Hash token and set to passwordResetToken field
-  this.passwordResetToken = bcrypt.hashSync(resetToken, 10);
+  this.passwordResetToken = bcrypt.hashSync(resetToken, 12);
 
-  // Set expire time (1 hour)
-  this.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+  this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
 
-  // Return unhashed token
   return resetToken;
 };
 
 userSchema.methods.verifyPasswordResetToken = function (token) {
-  // Check if token exists and hasn't expired
   if (!this.passwordResetToken || !this.passwordResetExpires) {
     return false;
   }
@@ -406,7 +450,6 @@ userSchema.methods.verifyPasswordResetToken = function (token) {
     return false;
   }
 
-  // Compare token
   return bcrypt.compareSync(token, this.passwordResetToken);
 };
 
@@ -428,7 +471,6 @@ userSchema.statics.softDeleteByIdWithCascade = async function (
   const userToDelete = await this.findOne({ _id: userId }).session(session);
   if (!userToDelete) throw new Error("User not found or already deleted");
 
-  // Protect against deleting the last SuperAdmin in organization
   if (userToDelete.role === SUPER_ADMIN_ROLE) {
     const superAdminCount = await this.countDocuments({
       organization: userToDelete.organization,
@@ -441,12 +483,15 @@ userSchema.statics.softDeleteByIdWithCascade = async function (
     }
   }
 
-  // Protect against deleting the last Head of Department in department
-  if (HEAD_OF_DEPARTMENT_ROLES.includes(userToDelete.role)) {
+  if (
+    userToDelete.isHod &&
+    HEAD_OF_DEPARTMENT_ROLES.includes(userToDelete.role)
+  ) {
     const hodCount = await this.countDocuments({
       organization: userToDelete.organization,
       department: userToDelete.department,
       role: { $in: HEAD_OF_DEPARTMENT_ROLES },
+      isHod: true,
       _id: { $ne: userId },
       isDeleted: false,
     }).session(session);
@@ -464,7 +509,6 @@ userSchema.statics.softDeleteByIdWithCascade = async function (
   const { Material } = await import("./Material.js");
   const { Notification } = await import("./Notification.js");
 
-  // Cascade delete related Tasks
   const tasksToDelete = await BaseTask.find({ createdBy: userId }).session(
     session
   );
@@ -472,22 +516,16 @@ userSchema.statics.softDeleteByIdWithCascade = async function (
     await BaseTask.softDeleteByIdWithCascade(task._id, { session });
   }
 
-  // Cascade delete related TaskActivities
   await TaskActivity.softDeleteMany({ createdBy: userId }, { session });
 
-  // Cascade delete related TaskComments
   await TaskComment.softDeleteManyCascade({ createdBy: userId }, { session });
 
-  // Cascade delete related Attachments
   await Attachment.softDeleteMany({ uploadedBy: userId }, { session });
 
-  // Cascade delete related Materials
   await Material.softDeleteMany({ addedBy: userId }, { session });
 
-  // Cascade delete related Notifications
   await Notification.softDeleteMany({ createdBy: userId }, { session });
 
-  // Remove user from task watchers
   await BaseTask.updateMany(
     {
       organization: userToDelete.organization,
@@ -498,11 +536,9 @@ userSchema.statics.softDeleteByIdWithCascade = async function (
     { session }
   );
 
-  // Finally, delete the user itself
   await this.softDeleteById(userId, { session });
 };
 
-// Initialize TTL index for cleanup after 365 days
 userSchema.statics.initializeTTL = async function () {
   const { TTL_EXPIRY } = await import("../utils/constants.js");
   return this.ensureTTLIndex(TTL_EXPIRY.USERS);

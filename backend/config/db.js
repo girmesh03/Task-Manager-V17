@@ -1,54 +1,94 @@
 // backend/config/db.js
 import mongoose from "mongoose";
 
-// Using Infinity for continuous retries
-const INITIAL_RETRY_DELAY = 1000;
-const MAX_RETRY_DELAY = 30000; // Cap at 30 seconds
-let retryCount = 0;
+const INITIAL_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 30000; // Cap at 30 seconds
+const MAX_STARTUP_RETRIES = 5;
+const HEALTH_CHECK_INTERVAL_MS = 30000;
+
 let isConnecting = false;
 
-const connectWithRetry = async () => {
-  if (mongoose.connection.readyState >= 1) return;
+const getConnectionOptions = () => ({
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 50,
+  minPoolSize: 5,
+  retryWrites: true,
+  w: "majority",
+});
+
+const tryConnectOnce = async () => {
+  if (!process.env.MONGODB_URI) {
+    throw new Error("MONGODB_URI environment variable not defined");
+  }
+
+  await mongoose.connect(process.env.MONGODB_URI, getConnectionOptions());
+};
+
+const connectWithRetry = async (maxRetries = MAX_STARTUP_RETRIES) => {
+  if (mongoose.connection.readyState === 1) return;
   if (isConnecting) return;
 
   isConnecting = true;
+  let attempt = 0;
+  let lastError;
 
-  try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error("MONGODB_URI environment variable not defined");
+  while (attempt < maxRetries && mongoose.connection.readyState !== 1) {
+    attempt += 1;
+
+    try {
+      await tryConnectOnce();
+
+      console.log("💾 Connected to MongoDB successfully.");
+
+      try {
+        const modelNames = mongoose.modelNames();
+        if (modelNames.length > 0 && mongoose.connection.db) {
+          await Promise.all(
+            modelNames.map((name) => mongoose.model(name).syncIndexes())
+          );
+          console.log("✅ MongoDB indexes are in sync.");
+        }
+      } catch (indexError) {
+        console.error(
+          `⚠️ Failed to sync MongoDB indexes: ${indexError.message}`
+        );
+      }
+
+      lastError = undefined;
+      break;
+    } catch (error) {
+      lastError = error;
+      const delay = Math.min(
+        INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1),
+        MAX_RETRY_DELAY_MS
+      );
+
+      console.error(
+        `MongoDB connection attempt ${attempt} failed: ${error.message}`
+      );
+
+      if (attempt >= maxRetries) {
+        console.error(
+          `❌ Maximum MongoDB connection retry attempts (${maxRetries}) reached.`
+        );
+        break;
+      }
+
+      console.warn(`Retrying MongoDB connection in ${delay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
+  }
 
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 2,
-    });
+  isConnecting = false;
 
-    console.log("💾 Connected to MongoDB successfully.");
-    retryCount = 0;
-  } catch (error) {
-    console.error(`MongoDB connection error: ${error.message}`);
-
-    // Calculate delay with exponential backoff, but cap it
-    const delay = Math.min(
-      INITIAL_RETRY_DELAY * Math.pow(2, retryCount),
-      MAX_RETRY_DELAY
-    );
-    retryCount++;
-    console.warn(
-      `Retrying connection in ${delay}ms... (Attempt ${retryCount})`
-    );
-    setTimeout(connectWithRetry, delay);
-    return;
-  } finally {
-    isConnecting = false;
+  if (mongoose.connection.readyState !== 1 && lastError) {
+    throw lastError;
   }
 };
 
-// Monitor connection state periodically
 const monitorConnection = () => {
-  setInterval(() => {
+  setInterval(async () => {
     const state = mongoose.connection.readyState;
     const stateMap = {
       0: "disconnected",
@@ -56,19 +96,28 @@ const monitorConnection = () => {
       2: "connecting",
       3: "disconnecting",
     };
-    
+
     if (state !== 1 && !isConnecting) {
-      console.log(`MongoDB connection state: ${stateMap[state] || "unknown"} (${state})`);
+      console.log(
+        `MongoDB connection state: ${stateMap[state] || "unknown"} (${state})`
+      );
+
       if (state === 0) {
         console.log("Attempting to reconnect to MongoDB...");
-        connectWithRetry();
+        try {
+          await connectWithRetry(MAX_STARTUP_RETRIES);
+        } catch (error) {
+          console.error(
+            `❌ MongoDB reconnection failed after retries: ${error.message}`
+          );
+        }
       }
     }
-  }, 30000); // Check every 30 seconds
+  }, HEALTH_CHECK_INTERVAL_MS);
 };
 
 const connectDB = async () => {
-  await connectWithRetry();
+  await connectWithRetry(MAX_STARTUP_RETRIES);
   monitorConnection();
   return mongoose.connection;
 };
@@ -78,15 +127,22 @@ mongoose.connection.on("connecting", () => {
 });
 
 mongoose.connection.on("connected", () => {
-  console.log("MongoDB connection re-established.");
+  console.log("MongoDB connection established.");
 });
 
 mongoose.connection.on("disconnected", () => {
   console.log("🔌 MongoDB connection lost. Attempting to reconnect...");
-  if (!isConnecting && mongoose.connection.readyState !== 1) {
-    // Reset retry count on disconnection to avoid excessive delays
-    retryCount = 0;
-    setTimeout(connectWithRetry, 1000);
+
+  if (!isConnecting) {
+    setTimeout(async () => {
+      try {
+        await connectWithRetry(MAX_STARTUP_RETRIES);
+      } catch (error) {
+        console.error(
+          `❌ MongoDB reconnection failed after retries: ${error.message}`
+        );
+      }
+    }, 1000);
   }
 });
 
