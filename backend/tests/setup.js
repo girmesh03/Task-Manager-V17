@@ -8,11 +8,17 @@ if (!process.env.MONGOMS_STARTUP_TIMEOUT) {
 
 // Global test setup for MongoDB Memory Server
 let mongoServer;
+const hasExternalDbUri = Boolean(process.env.MONGODB_URI);
+const isWindows = process.platform === "win32";
 
 // Setup before all tests
 beforeAll(async () => {
-  // Only start MongoDB Memory Server if not in CI or if explicitly requested
-  if (process.env.USE_MEMORY_DB !== "false") {
+  // Decide whether to use in-memory DB or external MongoDB
+  const useMemoryDb =
+    process.env.USE_MEMORY_DB === "true" ||
+    (!isWindows && !hasExternalDbUri && process.env.USE_MEMORY_DB !== "false");
+
+  if (useMemoryDb) {
     try {
       // Start MongoDB Memory Server with optimized settings
       mongoServer = await MongoMemoryServer.create({
@@ -35,18 +41,37 @@ beforeAll(async () => {
       });
 
       console.log("Connected to MongoDB Memory Server for testing");
+      return;
     } catch (error) {
       console.warn(
-        "MongoDB Memory Server failed to start, using mock connection:",
+        "MongoDB Memory Server failed to start, falling back to external or mock connection:",
         error.message
       );
-      // Fallback to mock connection for structure tests
+    }
+  }
+
+  // Fallback: use external MongoDB if URI is provided
+  if (hasExternalDbUri) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      console.log(
+        "Connected to external MongoDB for testing:",
+        process.env.MONGODB_URI
+      );
+    } catch (error) {
+      console.warn(
+        "Failed to connect to external MongoDB for tests, using mock connection:",
+        error.message
+      );
       mongoose.connection.readyState = 1; // Mock connected state
     }
   } else {
-    console.log("Skipping MongoDB Memory Server (USE_MEMORY_DB=false)");
-    // Mock connection for structure validation tests
-    mongoose.connection.readyState = 1;
+    console.warn(
+      "No in-memory MongoDB and no MONGODB_URI provided. Tests will run without a real database connection. Ensure MONGODB_URI is set or USE_MEMORY_DB=true if you need database-backed tests."
+    );
   }
 }, 120000); // Increase timeout for MongoDB download
 
