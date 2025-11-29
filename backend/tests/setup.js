@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
+// Increase MongoMemoryServer startup timeout to be more robust on slower environments (e.g. Windows)
+if (!process.env.MONGOMS_STARTUP_TIMEOUT) {
+  process.env.MONGOMS_STARTUP_TIMEOUT = "60000"; // 60 seconds
+}
+
 // Global test setup for MongoDB Memory Server
 let mongoServer;
 
