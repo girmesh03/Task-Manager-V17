@@ -174,7 +174,7 @@ NotificationSchema.path("readBy").validate({
 });
 
 softDeletePlugin(NotificationSchema);
-NotificationSchema.plugin(mongoosePaginate)
+NotificationSchema.plugin(mongoosePaginate);
 
 // ==================== METHODS ====================
 NotificationSchema.statics.ensureTTLIndex = async function () {
@@ -187,9 +187,10 @@ NotificationSchema.statics.ensureTTLIndex = async function () {
   );
 };
 
-// Initialize TTL index for cleanup after 90 days (backup to entity-specific TTL)
-NotificationSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+// Initialize TTL index for cleanup after 30 days
+NotificationSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.NOTIFICATIONS);
 };
 
 export const Notification = mongoose.model("Notification", NotificationSchema);

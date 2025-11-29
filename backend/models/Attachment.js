@@ -319,9 +319,10 @@ AttachmentSchema.statics.softDeleteByIdWithCascade = async function (
   await this.softDeleteById(attachmentId, { session, deletedBy });
 };
 
-// Initialize TTL index for cleanup after 90 days
-AttachmentSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+// Initialize TTL index for cleanup after 30 days
+AttachmentSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.ATTACHMENTS);
 };
 
 // Validate Cloudinary URL and extract metadata

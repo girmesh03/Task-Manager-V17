@@ -231,9 +231,10 @@ ProjectTaskSchema.pre("save", async function (next) {
   }
 });
 
-// Initialize TTL index for cleanup after 90 days
-ProjectTaskSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+// Initialize TTL index for cleanup after 180 days
+ProjectTaskSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.TASKS);
 };
 
 export const ProjectTask = BaseTask.discriminator(

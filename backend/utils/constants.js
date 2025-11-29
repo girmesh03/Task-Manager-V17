@@ -223,3 +223,18 @@ export const MAX_LIST_PAGE_LIMIT = 100;
 export const MAX_LIST_ITEM_LIMIT = 100;
 export const MAX_COST_HISTORY_ENTRIES = 200;
 export const MAX_RECIPIENTS_PER_NOTIFICATION = 500;
+
+// ==================== TTL EXPIRY PERIODS (in seconds) ====================
+// Time-to-live for soft-deleted documents before permanent deletion
+export const TTL_EXPIRY = {
+  MATERIALS: 90 * 24 * 60 * 60, // 90 days
+  VENDORS: 90 * 24 * 60 * 60, // 90 days
+  TASKS: 180 * 24 * 60 * 60, // 180 days (BaseTask, ProjectTask, AssignedTask, RoutineTask)
+  USERS: 365 * 24 * 60 * 60, // 365 days
+  DEPARTMENTS: 365 * 24 * 60 * 60, // 365 days
+  ORGANIZATIONS: null, // Never auto-delete
+  ATTACHMENTS: 30 * 24 * 60 * 60, // 30 days
+  COMMENTS: 180 * 24 * 60 * 60, // 180 days (TaskComment)
+  ACTIVITIES: 90 * 24 * 60 * 60, // 90 days (TaskActivity)
+  NOTIFICATIONS: 30 * 24 * 60 * 60, // 30 days
+};

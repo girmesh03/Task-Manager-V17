@@ -162,9 +162,10 @@ departmentSchema.statics.softDeleteByIdWithCascade = async function (
   await this.softDeleteById(departmentId, { session });
 };
 
-// Initialize TTL index for cleanup after 90 days
-departmentSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+// Initialize TTL index for cleanup after 365 days
+departmentSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.DEPARTMENTS);
 };
 
 export const Department = mongoose.model("Department", departmentSchema);

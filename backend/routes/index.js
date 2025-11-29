@@ -1,6 +1,6 @@
 // backend/routes/index.js
+// Requirements: 21, 42, 162, 294, 358-364, 411
 import express from "express";
-import { apiLimiter } from "../middlewares/rateLimiter.js";
 
 // Import all route modules
 import AuthRoutes from "./authRoutes.js";
@@ -15,10 +15,8 @@ import AttachmentRoutes from "./attachmentRoutes.js";
 
 const router = express.Router();
 
-// Apply general API rate limiting to all routes
-if (process.env.NODE_ENV === "production") {
-  router.use(apiLimiter);
-}
+// Note: General API rate limiting (100/15min) is applied in app.js
+// Auth routes have their own stricter rate limiting (5/15min)
 
 // Authentication routes (has its own stricter rate limiting)
 router.use("/auth", AuthRoutes);

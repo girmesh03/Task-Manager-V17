@@ -17,7 +17,7 @@ import {
   validateResetPassword,
 } from "../middlewares/validators/authValidators.js";
 
-import rateLimiter from "../middlewares/rateLimiter.js";
+import { authLimiter } from "../middlewares/rateLimiter.js";
 import {
   verifyJWT,
   verifyRefreshToken,
@@ -25,8 +25,9 @@ import {
 
 const router = express.Router();
 
-// Apply rate limiter to all auth routes
-router.use(rateLimiter);
+// Apply stricter rate limiter to all auth routes (5 requests per 15 minutes)
+// Requirements: 21, 42, 162, 294, 358-364, 411
+router.use(authLimiter);
 
 /**
  * @json {

@@ -309,9 +309,10 @@ BaseTaskSchema.statics.softDeleteByIdWithCascade = async function (
   await this.softDeleteById(taskId, { session, deletedBy });
 };
 
-// Initialize TTL index for cleanup after 90 days
-BaseTaskSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+// Initialize TTL index for cleanup after 180 days
+BaseTaskSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.TASKS);
 };
 
 export const BaseTask = mongoose.model("BaseTask", BaseTaskSchema);

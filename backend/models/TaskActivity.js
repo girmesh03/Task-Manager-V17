@@ -398,8 +398,9 @@ TaskActivitySchema.statics.softDeleteManyCascade = async function (
 };
 
 // Initialize TTL index for cleanup after 90 days
-TaskActivitySchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+TaskActivitySchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.ACTIVITIES);
 };
 
 export const TaskActivity = mongoose.model("TaskActivity", TaskActivitySchema);

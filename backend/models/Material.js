@@ -350,8 +350,9 @@ softDeletePlugin(MaterialSchema);
 MaterialSchema.plugin(paginate);
 
 // Initialize TTL index for cleanup after 90 days
-MaterialSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+MaterialSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.MATERIALS);
 };
 
 export const Material = mongoose.model("Material", MaterialSchema);

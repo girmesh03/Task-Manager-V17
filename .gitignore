@@ -1,11 +1,14 @@
 # .kiro
-.kiro/
+# .kiro/
 
 # kiro verification
 verification/
 
+# vscode
+.vscode/
+
 # docs
-docs/
+# docs/
 
 # Environment files
 .env

@@ -182,8 +182,9 @@ VendorSchema.statics.restoreById = async function (vendorId, { session } = {}) {
 };
 
 // Initialize TTL index for cleanup after 90 days
-VendorSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+VendorSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.VENDORS);
 };
 
 export const Vendor = mongoose.model("Vendor", VendorSchema);

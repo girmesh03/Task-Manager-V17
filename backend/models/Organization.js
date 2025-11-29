@@ -299,9 +299,10 @@ organizationSchema.statics.softDeleteByIdWithCascade = async function (
   await this.softDeleteById(organizationId, { session });
 };
 
-// Initialize TTL index for cleanup after 90 days
-organizationSchema.statics.initializeTTL = function () {
-  return this.ensureTTLIndex(90 * 24 * 60 * 60);
+// Organizations should NEVER be auto-deleted (TTL = null)
+organizationSchema.statics.initializeTTL = async function () {
+  const { TTL_EXPIRY } = await import("../utils/constants.js");
+  return this.ensureTTLIndex(TTL_EXPIRY.ORGANIZATIONS);
 };
 
 export const Organization = mongoose.model("Organization", organizationSchema);
