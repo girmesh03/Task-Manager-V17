@@ -206,7 +206,7 @@
   - **Tests:** Test department scoping, cascade delete, manager validation, use --testPathPatterns instead of --testPathPattern, wait until the test complete
   - _Requirements: 2.1-2.6, 6-11, 12-17, 74.1, 30, 234-240_
 
-- [ ] 13. Task Models Implementation (BaseTask, ProjectTask, RoutineTask, AssignedTask)
+- [x] 13. Task Models Implementation (BaseTask, ProjectTask, RoutineTask, AssignedTask)
 
   - Include backend/docs/\*, read and understand what have been done on the previous codebase tasks.
   - Validate each of the BaseTask, ProjectTask, RoutineTask, AssignedTask schema fields, methods and static methods
@@ -227,7 +227,7 @@
   - **Tests:** Test discriminator inheritance, type-specific validation, cascade delete, use --testPathPatterns instead of --testPathPattern, wait until the test complete
   - _Requirements: 2.1-2.6, 6-11, 12-17, 74.1, 31, 241-252_
 
-- [ ] 14. TaskActivity Model Implementation
+- [x] 14. TaskActivity Model Implementation
 
   - Include backend/docs/\*, read and understand what have been done on the previous codebase tasks.
     alidate each task activity schema fields, methods and static methods
