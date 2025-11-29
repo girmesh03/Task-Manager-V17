@@ -145,7 +145,7 @@
   - **Tests:** Property tests for hard delete prevention, query filtering, restore, use --testPathPatterns instead of --testPathPattern, wait until the test complete
   - _Requirements: 2.1-2.6, 6-11, 12-17, 74.1, 28, 34, 36, 201-212_
 
-- [ ] 10. User Model Implementation
+- [x] 10. User Model Implementation
 
   - Include backend/docs/\*, read and understand what have been done on the previous codebase tasks.
   - Validate each user schema fields, preferences, methods and static methods

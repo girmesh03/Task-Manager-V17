@@ -6,7 +6,6 @@ let mongoServer;
 
 // Setup before all tests
 beforeAll(async () => {
-
   // Only start MongoDB Memory Server if not in CI or if explicitly requested
   if (process.env.USE_MEMORY_DB !== "false") {
     try {
@@ -88,8 +87,11 @@ global.testUtils = {
     const { Organization } = await import("../models/index.js");
     return await Organization.create({
       name: "Test Organization",
+      description: "Test organization for automated tests",
       email: "test@example.com",
       phone: "+1234567890",
+      address: "123 Test Street",
+      industry: "Hospitality",
       isPlatformOrg: false,
     });
   },
@@ -99,6 +101,7 @@ global.testUtils = {
     const { Department } = await import("../models/index.js");
     return await Department.create({
       name: "Test Department",
+      description: "Test department for automated tests",
       organization: organizationId,
     });
   },
@@ -109,11 +112,13 @@ global.testUtils = {
     return await User.create({
       firstName: "Test",
       lastName: "User",
+      position: options.position || "Test Position",
       email: options.email || "testuser@example.com",
-      password: "TestPassword123!",
+      password: options.password || "TestPassword123!",
       organization: organizationId,
       department: departmentId,
-      role: options.role || "EMPLOYEE",
+      role: options.role || "User",
+      joinedAt: options.joinedAt || new Date(),
       isPlatformUser: options.isPlatformUser || false,
       isHod: options.isHod || false,
       ...options,
