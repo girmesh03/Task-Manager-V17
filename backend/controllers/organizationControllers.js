@@ -31,8 +31,10 @@ import {
  */
 export const getAllOrganizations = asyncHandler(async (req, res, next) => {
   const orgId = req.user.organization._id;
-  const isPlatformUser =
-    String(orgId) === String(process.env.PLATFORM_ORGANIZATION_ID);
+  const isPlatformUser = Boolean(
+    req.user.isPlatformUser ||
+      (req.user.organization && req.user.organization.isPlatformOrg === true)
+  );
 
   const {
     page = 1,
