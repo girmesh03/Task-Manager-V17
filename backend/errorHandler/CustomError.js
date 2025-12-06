@@ -30,21 +30,29 @@ class CustomError extends Error {
   }
 
   /**
-   * Factory method for 401 Unauthorized errors
+   * Factory method for 401 Unauthorized errors (Not Authenticated)
    * @param {string} message - Error message
    * @returns {CustomError}
    */
-  static unauthorized(message = "Unauthorized - Authentication required") {
-    return new CustomError(message, "UNAUTHORIZED", 401);
+  static unauthenticated(message = "Unauthenticated - Please login") {
+    return new CustomError(message, "UNAUTHENTICATED", 401);
   }
 
   /**
-   * Factory method for 403 Forbidden errors
+   * Factory method for 403 Forbidden errors (Authenticated but Insufficient Permissions)
    * @param {string} message - Error message
    * @returns {CustomError}
    */
   static forbidden(message = "Forbidden - Insufficient permissions") {
     return new CustomError(message, "FORBIDDEN", 403);
+  }
+
+  /**
+   * Alias for backward compatibility
+   * @deprecated Use unauthenticated() instead
+   */
+  static unauthorized(message = "Unauthorized - Please login") {
+    return CustomError.unauthenticated(message);
   }
 
   /**

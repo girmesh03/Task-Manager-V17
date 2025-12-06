@@ -38,21 +38,29 @@ class AppError extends Error {
   }
 
   /**
-   * Factory method for unauthorized errors
+   * Factory method for 401 Unauthenticated errors (Not Authenticated)
    * @param {string} message - Error message
    * @returns {AppError}
    */
-  static unauthorized(message = "Unauthorized - Please login") {
-    return new AppError(message, "UNAUTHORIZED", "error", "auth");
+  static unauthenticated(message = "Unauthenticated - Please login") {
+    return new AppError(message, "UNAUTHENTICATED", "error", "auth");
   }
 
   /**
-   * Factory method for forbidden errors
-    * @param {string} message - Error message
+   * Factory method for 403 Forbidden errors (Authenticated but Insufficient Permissions)
+   * @param {string} message - Error message
    * @returns {AppError}
    */
   static forbidden(message = "Forbidden - Insufficient permissions") {
     return new AppError(message, "FORBIDDEN", "error", "auth");
+  }
+
+  /**
+   * Alias for backward compatibility
+   * @deprecated Use unauthenticated() instead
+   */
+  static unauthorized(message = "Unauthorized - Please login") {
+    return AppError.unauthenticated(message);
   }
 
   /**
