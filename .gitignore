@@ -1,5 +1,5 @@
 # .kiro
-.kiro/
+# .kiro/
 
 # kiro verification
 verification/
@@ -11,13 +11,13 @@ verification/
 docs/
 
 # Environment files
-.env
-.env.local
-.env.production
-.env.development
-*/*/\.env
-*/.env
-**/.env
+# .env
+# .env.local
+# .env.production
+# .env.development
+# */*/\.env
+# */.env
+# **/.env
 
 # mock files
 backend/mock
