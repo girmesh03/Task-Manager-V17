@@ -73,8 +73,8 @@ const optionalAuthenticate = asyncHandler(async (req, res, next) => {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
-      organizationId: decoded.organizationId,
-      departmentId: decoded.departmentId,
+      organization: decoded.organization,
+      department: decoded.department,
       isPlatformUser: decoded.isPlatformUser,
     };
 
