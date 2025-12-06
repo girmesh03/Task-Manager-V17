@@ -6,7 +6,9 @@
 
 import asyncHandler from "express-async-handler";
 import CustomError from "../errorHandler/CustomError.js";
-import authorizationMatrix from "../config/authorizationMatrix.json" assert { type: "json" };
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const authorizationMatrix = require("../config/authorizationMatrix.json");
 
 /**
  * Check if user has permission for a resource and operation
