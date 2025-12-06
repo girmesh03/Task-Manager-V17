@@ -222,8 +222,8 @@ export const getMe = asyncHandler(async (req, res) => {
       userId: req.user.userId,
       email: req.user.email,
       role: req.user.role,
-      organizationId: req.user.organizationId,
-      departmentId: req.user.departmentId,
+      organization: req.user.organization, // ObjectId
+      department: req.user.department,     // ObjectId
       isPlatformUser: req.user.isPlatformUser,
     })
   );

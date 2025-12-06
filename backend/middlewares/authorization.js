@@ -16,7 +16,7 @@ import authorizationMatrix from "../config/authorizationMatrix.json" assert { ty
  */
 const authorize = (resource, operation) => {
   return asyncHandler(async (req, res, next) => {
-    const { role, organizationId, departmentId, isPlatformUser } = req.user;
+    const { role, organization, department, isPlatformUser } = req.user;
 
     // Get permissions for this role and resource
     const permissions = authorizationMatrix[resource]?.[role];
@@ -42,8 +42,8 @@ const authorize = (resource, operation) => {
       operation,
       allowedScopes,
       role,
-      organizationId,
-      departmentId,
+      organization,  // ObjectId
+      department,    // ObjectId
       isPlatformUser,
     };
 
@@ -60,7 +60,7 @@ const authorize = (resource, operation) => {
  * @throws {CustomError} If user doesn't have access
  */
 export const checkResourceAccess = (resourceDoc, req) => {
-  const { allowedScopes, organizationId, departmentId, isPlatformUser, role } =
+  const { allowedScopes, organization, department, isPlatformUser, role } =
     req.authorization || req.user;
   const userId = req.user.userId;
 
@@ -74,7 +74,7 @@ export const checkResourceAccess = (resourceDoc, req) => {
     const resourceOrgId = resourceDoc.organization.toString();
 
     // Must be in same organization
-    if (resourceOrgId !== organizationId.toString()) {
+    if (resourceOrgId !== organization.toString()) {
       throw CustomError.forbidden(
         "You don't have access to resources from other organizations"
       );
@@ -91,7 +91,7 @@ export const checkResourceAccess = (resourceDoc, req) => {
 
       if (allowedScopes?.includes("ownDept")) {
         // Can only access own department
-        if (resourceDeptId !== departmentId.toString()) {
+        if (resourceDeptId !== department.toString()) {
           throw CustomError.forbidden(
             "You don't have access to resources from other departments"
           );
@@ -147,7 +147,7 @@ export const checkResourceAccess = (resourceDoc, req) => {
  * @returns {Object} MongoDB query filter
  */
 export const buildAuthFilter = (req) => {
-  const { allowedScopes, organizationId, departmentId, isPlatformUser } =
+  const { allowedScopes, organization, department, isPlatformUser } =
     req.authorization || req.user;
   const userId = req.user.userId;
 
@@ -159,7 +159,7 @@ export const buildAuthFilter = (req) => {
   }
 
   // Must be in same organization
-  filter.organization = organizationId;
+  filter.organization = organization;
 
   // Check department scoping
   if (allowedScopes?.includes("crossDept")) {
@@ -169,7 +169,7 @@ export const buildAuthFilter = (req) => {
 
   if (allowedScopes?.includes("ownDept")) {
     // Can only see own department
-    filter.department = departmentId;
+    filter.department = department;
     return filter;
   }
 

@@ -16,8 +16,8 @@ export const generateAccessToken = (user) => {
     userId: user._id,
     email: user.email,
     role: user.role,
-    organizationId: user.organization,
-    departmentId: user.department,
+    organization: user.organization, // Schema field name (no Id suffix)
+    department: user.department,     // Schema field name (no Id suffix)
     isPlatformUser: user.isPlatformUser,
   };
 

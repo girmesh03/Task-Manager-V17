@@ -25,13 +25,13 @@ const authenticate = asyncHandler(async (req, res, next) => {
     // Verify token and decode payload
     const decoded = verifyAccessToken(accessToken);
 
-    // Attach user data to request
+    // Attach user data to request (using schema field names)
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
-      organizationId: decoded.organizationId,
-      departmentId: decoded.departmentId,
+      organization: decoded.organization, // ObjectId from token
+      department: decoded.department,     // ObjectId from token
       isPlatformUser: decoded.isPlatformUser,
     };
 
