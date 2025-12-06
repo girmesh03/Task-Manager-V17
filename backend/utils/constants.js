@@ -354,7 +354,7 @@ export const SOCKET_EVENTS = {
 };
 
 // ==================== PHONE NUMBER REGEX ====================
-export const PHONE_REGEX = /^(\+2510\d{9}|0\d{9})$/;
+export const PHONE_REGEX = /^(\+251\d{9}|0\d{9})$/;
 
 // ==================== EMAIL REGEX ====================
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

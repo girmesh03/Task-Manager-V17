@@ -205,7 +205,8 @@ export const isValidEmail = (email) => {
  * @returns {boolean}
  */
 export const isValidPhone = (phone) => {
-  const phoneRegex = /^(\+2510\d{9}|0\d{9})$/;
+  // Accepts: 0XXXXXXXXX (10 digits starting with 0) or +251XXXXXXXXX (9 digits after +251)
+  const phoneRegex = /^(\+251\d{9}|0\d{9})$/;
   return phoneRegex.test(phone);
 };
 
