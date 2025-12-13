@@ -1,32 +1,30 @@
-/**
- * Validation Result Handler
- * Processes express-validator results and throws errors if validation fails
- */
-
+// backend/middlewares/validators/validation.js
 import { validationResult } from "express-validator";
 import CustomError from "../../errorHandler/CustomError.js";
 
-/**
- * Handle validation errors from express-validator
- * Throws CustomError with validation messages if validation fails
- */
-const handleValidation = (req, res, next) => {
+export const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
-
   if (!errors.isEmpty()) {
-    // Extract error messages
-    const errorMessages = errors.array().map((error) => ({
-      field: error.path || error.param,
-      message: error.msg,
-    }));
+    const errorMessages = errors.array().reduce((acc, error) => {
+      // express-validator exposes the field name in `param`
+      const key = error.param || error.path || error.location || "field";
+      acc[key] = error.msg;
+      return acc;
+    }, {});
 
-    // Throw validation error with details
-    const error = CustomError.validationError("Validation failed");
-    error.errors = errorMessages;
-    throw error;
+    return next(
+      CustomError.validation(
+        `Validation failed: ${Object.values(errorMessages).join(". ")}`,
+        {
+          url: req.originalUrl,
+          method: req.method,
+          ip: req.ip,
+          invalidFields: Object.keys(errorMessages),
+          body: req.body,
+          query: req.query,
+        }
+      )
+    );
   }
-
   next();
 };
-
-export default handleValidation;

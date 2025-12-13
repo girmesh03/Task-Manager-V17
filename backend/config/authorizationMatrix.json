@@ -1,262 +1,462 @@
 {
-  "User": {
-    "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept", "own"],
-      "delete": ["crossDept"]
-    },
-    "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["ownDept", "own"],
-      "delete": ["ownDept"]
-    },
-    "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": []
-    },
-    "User": {
-      "create": [],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": []
-    }
-  },
   "Organization": {
     "SuperAdmin": {
-      "create": ["crossOrg"],
-      "read": ["crossOrg", "own"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": [],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": ["read"]
+      }
     },
     "Admin": {
-      "create": [],
-      "read": ["own"],
-      "update": [],
-      "delete": []
+      "org": {
+        "own": ["read"],
+        "ownDept": [],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": ["read"]
+      }
     },
     "Manager": {
-      "create": [],
-      "read": ["own"],
-      "update": [],
-      "delete": []
+      "org": {
+        "own": ["read"],
+        "ownDept": [],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": [],
-      "read": ["own"],
-      "update": [],
-      "delete": []
+      "org": {
+        "own": ["read"],
+        "ownDept": [],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "Department": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": [],
+        "ownDept": ["read", "update", "delete"],
+        "crossDept": ["create", "read", "update", "delete"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": [],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": []
+      "org": {
+        "own": [],
+        "ownDept": ["read", "update"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": [],
-      "read": ["own"],
-      "update": [],
-      "delete": []
+      "org": {
+        "own": [],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": [],
-      "read": ["own"],
-      "update": [],
-      "delete": []
+      "org": {
+        "own": [],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    }
+  },
+  "User": {
+    "SuperAdmin": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["create", "read", "update", "delete"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "Admin": {
+      "org": {
+        "own": ["read", "update"],
+        "ownDept": ["read"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "Manager": {
+      "org": {
+        "own": ["read", "update"],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "User": {
+      "org": {
+        "own": ["read", "update"],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "Task": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept", "own"],
-      "delete": ["crossDept", "own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept", "own"],
-      "delete": ["crossDept", "own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "TaskActivity": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "TaskComment": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "Material": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["ownDept"],
-      "delete": ["ownDept"]
+      "org": {
+        "own": [],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": [],
-      "read": ["ownDept"],
-      "update": [],
-      "delete": []
+      "org": {
+        "own": [],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "Vendor": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["crossDept"],
-      "delete": ["crossDept"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["ownDept"],
-      "delete": ["ownDept"]
+      "org": {
+        "own": [],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": [],
-      "read": ["ownDept"],
-      "update": [],
-      "delete": []
-    }
-  },
-  "Attachment": {
-    "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": ["crossDept"]
-    },
-    "Admin": {
-      "create": ["crossDept"],
-      "read": ["crossDept"],
-      "update": ["own"],
-      "delete": ["crossDept"]
-    },
-    "Manager": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
-    },
-    "User": {
-      "create": ["ownDept"],
-      "read": ["ownDept"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": [],
+        "ownDept": ["read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   },
   "Notification": {
     "SuperAdmin": {
-      "create": ["crossDept"],
-      "read": ["own"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Admin": {
-      "create": ["crossDept"],
-      "read": ["own"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "Manager": {
-      "create": ["ownDept"],
-      "read": ["own"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": [],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     },
     "User": {
-      "create": ["ownDept"],
-      "read": ["own"],
-      "update": ["own"],
-      "delete": ["own"]
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": [],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    }
+  },
+  "Attachment": {
+    "SuperAdmin": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "Admin": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read", "update", "delete"],
+        "crossDept": ["read"]
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "Manager": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
+    },
+    "User": {
+      "org": {
+        "own": ["read", "update", "delete"],
+        "ownDept": ["create", "read"],
+        "crossDept": []
+      },
+      "crossOrg": {
+        "from": "platform",
+        "ops": []
+      }
     }
   }
 }

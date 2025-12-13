@@ -1,93 +1,73 @@
-/**
- * JWT Token Generation Utilities
- * Generates access and refresh tokens with user payload
- */
-
+// backend/utils/generateTokens.js
 import jwt from "jsonwebtoken";
-import { JWT_CONFIG } from "./constants.js";
 
-/**
- * Generate access token (15 minutes expiry)
- * @param {Object} user - User object
- * @returns {string} JWT access token
- */
-export const generateAccessToken = (user) => {
-  const payload = {
-    userId: user._id,
-    email: user.email,
-    role: user.role,
-    organization: user.organization, // Schema field name (no Id suffix)
-    department: user.department,     // Schema field name (no Id suffix)
-    isPlatformUser: user.isPlatformUser,
-  };
+// Defaults based on environment
+const DEFAULT_ACCESS_EXPIRES_IN =
+  process.env.NODE_ENV === "production" ? "15m" : "1h";
+const DEFAULT_REFRESH_EXPIRES_IN = "7d";
 
-  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRES_IN,
+const accessExpiresInEnv =
+  process.env.JWT_ACCESS_EXPIRES_IN || DEFAULT_ACCESS_EXPIRES_IN;
+const refreshExpiresInEnv =
+  process.env.JWT_REFRESH_EXPIRES_IN || DEFAULT_REFRESH_EXPIRES_IN;
+
+// Convert expiresIn string to milliseconds
+const expiresInToMs = (expiresIn) => {
+  if (typeof expiresIn === "number") {
+    return expiresIn * 1000;
+  }
+
+  const match = String(expiresIn).match(/^(\d+)([smhd])$/);
+  if (match) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    const multipliers = {
+      s: 1000,
+      m: 60 * 1000,
+      h: 60 * 60 * 1000,
+      d: 24 * 60 * 60 * 1000,
+    };
+    return value * multipliers[unit];
+  }
+
+  // Fallback to 15 minutes if format is unrecognized
+  console.warn(
+    `Unsupported expiresIn format: ${expiresIn}. Using fallback value.`
+  );
+  return 15 * 60 * 1000;
+};
+
+// Calculate cookie maxAge values
+const ACCESS_TOKEN_MAX_AGE = expiresInToMs(accessExpiresInEnv);
+const REFRESH_TOKEN_MAX_AGE = expiresInToMs(refreshExpiresInEnv);
+
+export const generateAccessToken = (userId) => {
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (!secret) throw new Error("JWT_ACCESS_SECRET not set");
+  return jwt.sign({ userId }, secret, {
+    expiresIn: accessExpiresInEnv,
   });
 };
 
-/**
- * Generate refresh token (7 days expiry)
- * @param {Object} user - User object
- * @returns {string} JWT refresh token
- */
-export const generateRefreshToken = (user) => {
-  const payload = {
-    userId: user._id,
-    email: user.email,
-  };
-
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: JWT_CONFIG.REFRESH_TOKEN_EXPIRES_IN,
+export const generateRefreshToken = (userId) => {
+  const secret = process.env.JWT_REFRESH_SECRET;
+  if (!secret) throw new Error("JWT_REFRESH_SECRET not set");
+  return jwt.sign({ userId }, secret, {
+    expiresIn: refreshExpiresInEnv,
   });
 };
 
-/**
- * Generate both access and refresh tokens
- * @param {Object} user - User object
- * @returns {Object} Object with accessToken and refreshToken
- */
-export const generateTokens = (user) => {
-  return {
-    accessToken: generateAccessToken(user),
-    refreshToken: generateRefreshToken(user),
-  };
-};
+// Cookie options
+export const getAccessTokenCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: ACCESS_TOKEN_MAX_AGE,
+});
 
-/**
- * Verify access token
- * @param {string} token - JWT access token
- * @returns {Object} Decoded token payload
- * @throws {Error} If token is invalid or expired
- */
-export const verifyAccessToken = (token) => {
-  return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-};
-
-/**
- * Verify refresh token
- * @param {string} token - JWT refresh token
- * @returns {Object} Decoded token payload
- * @throws {Error} If token is invalid or expired
- */
-export const verifyRefreshToken = (token) => {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-};
-
-/**
- * Decode token without verification (for debugging)
- * @param {string} token - JWT token
- * @returns {Object} Decoded token payload
- */
-export const decodeToken = (token) => {
-  return jwt.decode(token);
-};
-
-export default {
-  generateAccessToken,
-  generateRefreshToken,
-  generateTokens,
-  verifyAccessToken,
-  verifyRefreshToken,
-  decodeToken,
-};
+export const getRefreshTokenCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: REFRESH_TOKEN_MAX_AGE,
+});

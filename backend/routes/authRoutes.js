@@ -1,95 +1,98 @@
-/**
- * Authentication Routes
- * Handles user registration, login, logout, token refresh, password reset
- */
-
+// backend/routes/authRoutes.js
 import express from "express";
+
 import {
-  register,
-  login,
-  logout,
-  refreshToken,
+  registerOrganization,
+  loginUser,
+  logoutUser,
+  getRefreshToken,
   forgotPassword,
   resetPassword,
-  getMe,
 } from "../controllers/authControllers.js";
+
 import {
-  registerValidation,
-  loginValidation,
-  forgotPasswordValidation,
-  resetPasswordValidation,
+  validateOrgRegistration,
+  validateLogin,
+  validateForgotPassword,
+  validateResetPassword,
 } from "../middlewares/validators/authValidators.js";
-import handleValidation from "../middlewares/validators/validation.js";
-import authenticate from "../middlewares/authMiddleware.js";
+
 import { authLimiter } from "../middlewares/rateLimiter.js";
+import {
+  verifyJWT,
+  verifyRefreshToken,
+} from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-/**
- * @route   POST /api/auth/register
- * @desc    Register new user with organization and department
- * @access  Public
- */
-router.post(
-  "/register",
-  authLimiter,
-  registerValidation,
-  handleValidation,
-  register
-);
+// Apply stricter rate limiter to all auth routes (5 requests per 15 minutes)
+// Requirements: 21, 42, 162, 294, 358-364, 411
+router.use(authLimiter);
 
 /**
- * @route   POST /api/auth/login
- * @desc    Login user
- * @access  Public
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/register",
+ *   "middleware": ["rateLimiter", "validateOrgRegistration"],
+ *   "controller": "registerOrganization",
+ *   "description": "Register a new organization, department and tenant super admin user"
+ * }
  */
-router.post("/login", authLimiter, loginValidation, handleValidation, login);
+router.route("/register").post(validateOrgRegistration, registerOrganization);
 
 /**
- * @route   DELETE /api/auth/logout
- * @desc    Logout user (clear cookies)
- * @access  Private
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/login",
+ *   "middleware": ["rateLimiter", "validateLogin"],
+ *   "controller": "loginUser",
+ *   "description": "Authenticate user and set access/refresh tokens via cookies"
+ * }
  */
-router.delete("/logout", authenticate, logout);
+router.route("/login").post(validateLogin, loginUser);
 
 /**
- * @route   GET /api/auth/refresh-token
- * @desc    Refresh access token using refresh token
- * @access  Public (uses refresh token from cookie)
+ * @json {
+ *   "method": "DELETE",
+ *   "path": "/api/auth/logout",
+ *   "middleware": ["rateLimiter", "verifyRefreshToken"],
+ *   "controller": "logoutUser",
+ *   "description": "Logout user and clear authentication cookies"
+ * }
  */
-router.get("/refresh-token", refreshToken);
+router.route("/logout").delete(verifyRefreshToken, logoutUser);
 
 /**
- * @route   POST /api/auth/forgot-password
- * @desc    Send password reset email
- * @access  Public
+ * @json {
+ *   "method": "GET",
+ *   "path": "/api/auth/refresh-token",
+ *   "middleware": ["rateLimiter", "verifyRefreshToken"],
+ *   "controller": "getRefreshToken",
+ *   "description": "Get new access token using refresh token"
+ * }
  */
-router.post(
-  "/forgot-password",
-  authLimiter,
-  forgotPasswordValidation,
-  handleValidation,
-  forgotPassword
-);
+router.route("/refresh-token").get(verifyRefreshToken, getRefreshToken);
 
 /**
- * @route   POST /api/auth/reset-password
- * @desc    Reset password using reset token
- * @access  Public
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/forgot-password",
+ *   "middleware": ["rateLimiter", "validateForgotPassword"],
+ *   "controller": "forgotPassword",
+ *   "description": "Request password reset and send reset email"
+ * }
  */
-router.post(
-  "/reset-password",
-  authLimiter,
-  resetPasswordValidation,
-  handleValidation,
-  resetPassword
-);
+router.route("/forgot-password").post(validateForgotPassword, forgotPassword);
 
 /**
- * @route   GET /api/auth/me
- * @desc    Get current user info
- * @access  Private
+ * @json {
+ *   "method": "POST",
+ *   "path": "/api/auth/reset-password",
+ *   "middleware": ["rateLimiter", "validateResetPassword"],
+ *   "controller": "resetPassword",
+ *   "description": "Reset password using valid reset token"
+ * }
  */
-router.get("/me", authenticate, getMe);
+router.route("/reset-password").post(validateResetPassword, resetPassword);
 
 export default router;

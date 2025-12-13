@@ -2,350 +2,198 @@
 inclusion: always
 ---
 
-# Architecture & Code Patterns
+# Project Structure & Architecture
 
-Monorepo structure: `backend/` (Node.js/Express) + `client/` (React/Vite)
+## Monorepo Layout
 
-## Critical Project Requirements, Design and Tasks:
-
-> **The existing codebase MUST be respected.** Do not impose arbitrary patterns. Work > WITH the existing architecture, not against it.
->
-> **To install any new packages that doesn't exist in backend/package.json and client/package.json, ask the user as yes or no. If the user provide yes, install the package and proceed accordingly and if the user provide no, then proceed to validate and correct without using a package.**
+```
+backend/    # Node.js/Express API server
+client/     # React/Vite frontend
+docs/       # Documentation
+```
 
 ## Backend Architecture
 
-**Layer Flow:** Routes → Controllers → Services → Models
+### Layer Flow (MANDATORY)
 
-### Source of Truth Files
+Routes → Controllers → Services → Models
 
-- **`middlewares/validators/*`** - Field names and validation rules (frontend MUST match exactly)
-- **`utils/constants.js`** - All enums (roles, statuses, priorities, limits)
-- **`config/authorizationMatrix.json`** - Permission definitions per role per resource
-- **`utils/socketInstance.js`** - Socket.IO singleton instance
-- **`models/plugins/softDelete.js`** - Soft delete plugin for all models
+**NEVER skip layers.** Controllers handle HTTP, services contain business logic, models define data.
 
-### Before Coding Backend Features
+### Directory Map
 
-1. Check validators in `middlewares/validators/*` for exact field names
-2. Import constants from `utils/constants.js` instead of hardcoding values
-3. Use `errorHandler/CustomError.js` for all error throwing
-4. All models use soft delete plugin (`isDeleted` flag)
-5. Use `express-async-handler` for async route handlers
-6. Follow controller → service → model pattern
+- `config/` - CORS, DB, authorization matrix
+- `controllers/` - HTTP handlers (req/res only, no business logic)
+- `services/` - Business logic and external integrations
+- `models/` - Mongoose schemas with validation
+- `routes/` - Endpoint definitions with middleware chain
+- `middlewares/` - Auth, validation, rate limiting
+  - `validators/` - **SOURCE OF TRUTH for all field names and constraints**
+- `utils/` - Shared utilities and `constants.js` (import, never hardcode)
+- `errorHandler/` - CustomError class with typed methods
+- `templates/` - Email templates
+- `mock/` - Seed data
+- `tests/` - Unit and property-based tests
 
-### Backend File Structure
+### Complete Backend File Structure
 
 ```
 backend/
 ├── config/
-│   ├── allowedOrigins.js          # CORS allowed origins
-│   ├── authorizationMatrix.json   # Role-based permissions
-│   ├── corsOptions.js             # CORS configuration
-│   └── db.js                      # MongoDB connection
+│   ├── allowedOrigins.js          # CORS allowed origins list
+│   ├── authorizationMatrix.json   # Role-based permissions (ONLY source of truth)
+│   ├── corsOptions.js             # CORS configuration with validation
+│   └── db.js                      # MongoDB connection with retry logic
 ├── controllers/
-│   ├── attachmentControllers.js   # Attachment CRUD
-│   ├── authControllers.js         # Login, register, refresh, logout
-│   ├── departmentControllers.js   # Department CRUD
-│   ├── materialControllers.js     # Material CRUD
+│   ├── attachmentControllers.js   # Attachment CRUD operations
+│   ├── authControllers.js         # Login, register, refresh, logout, password reset
+│   ├── departmentControllers.js   # Department CRUD with cascade
+│   ├── materialControllers.js     # Material CRUD operations
 │   ├── notificationControllers.js # Notification CRUD, mark as read
-│   ├── organizationControllers.js # Organization CRUD
-│   ├── taskControllers.js         # Task CRUD (all types)
-│   ├── userControllers.js         # User CRUD, profile, status
-│   └── vendorControllers.js       # Vendor CRUD
-├── errorHandler/
-│   ├── CustomError.js             # Custom error class
-│   └── ErrorController.js         # Global error handler middleware
-├── middlewares/
-│   ├── validators/
-│   │   ├── attachmentValidators.js
-│   │   ├── authValidators.js
-│   │   ├── departmentValidators.js
-│   │   ├── materialValidators.js
-│   │   ├── notificationValidators.js
-│   │   ├── organizationValidators.js
-│   │   ├── taskValidators.js
-│   │   ├── userValidators.js
-│   │   ├── validation.js          # Validation result handler
-│   │   └── vendorValidators.js
-│   ├── authMiddleware.js          # JWT verification
-│   ├── authorization.js           # Role-based authorization
-│   └── rateLimiter.js             # Rate limiting (production)
-├── mock/
-│   ├── cleanSeedSetup.js          # Seed data initialization
-│   └── data.js                    # Mock data
-├── models/
-│   ├── plugins/
-│   │   └── softDelete.js          # Soft delete plugin
-│   ├── AssignedTask.js            # Assigned task model
-│   ├── Attachment.js              # Attachment model
-│   ├── BaseTask.js                # Base task model (discriminator)
-│   ├── Department.js              # Department model
-│   ├── index.js                   # Model exports
-│   ├── Material.js                # Material model
-│   ├── Notification.js            # Notification model
-│   ├── Organization.js            # Organization model
-│   ├── ProjectTask.js             # Project task model
-│   ├── RoutineTask.js             # Routine task model
-│   ├── TaskActivity.js            # Task activity model
-│   ├── TaskComment.js             # Task comment model
-│   ├── User.js                    # User model
-│   └── Vendor.js                  # Vendor model
-├── routes/
-│   ├── attachmentRoutes.js        # Attachment routes
-│   ├── authRoutes.js              # Auth routes
-│   ├── departmentRoutes.js        # Department routes
-│   ├── index.js                   # Route aggregator
-│   ├── materialRoutes.js          # Material routes
-│   ├── notificationRoutes.js      # Notification routes
-│   ├── organizationRoutes.js      # Organization routes
-│   ├── taskRoutes.js              # Task routes
-│   ├── userRoutes.js              # User routes
-│   └── vendorRoutes.js            # Vendor routes
-├── services/
-│   ├── emailService.js            # Email sending (Nodemailer)
-│   └── notificationService.js     # Notification creation
-├── templates/
-│   └── emailTemplates.js          # Email HTML templates
-├── utils/
-│   ├── authorizationMatrix.js     # Authorization helper
-│   ├── constants.js               # All constants
-│   ├── generateTokens.js          # JWT token generation
-│   ├── helpers.js                 # Utility functions
-│   ├── materialTransform.js       # Material data transformation
-│   ├── responseTransform.js       # Response formatting
-│   ├── socket.js                  # Socket.IO event handlers
-│   ├── socketEmitter.js           # Socket.IO event emitters
-│   ├── socketInstance.js          # Socket.IO singleton
-│   └── userStatus.js              # User status tracking
-├── .env                           # Environment variables
-├── app.js                         # Express app configuration
-├── package.json                   # Dependencies and scripts
-└── server.js                      # Server startup and lifecycle
+│   ├── organizationControllers.js # Organization CRUD (platform SuperAdmin)
+│   ├── taskControllers.js         # Task CRUD (all types: ProjectTask/RoutineTask/AssignedTask)
+│   ├── userControllers.js         # User CRUD, profile, status updates
+│   └── vendorControllers.js       # Vendor CRUD with material reassignment
 ```
+
+├── errorHandler/
+│ ├── CustomError.js # Custom error class with status codes
+│ └── ErrorController.js # Global error handler middleware
+├── middlewares/
+│ ├── validators/
+│ │ ├── attachmentValidators.js # Attachment validation rules
+│ │ ├── authValidators.js # Auth validation (register, login, reset)
+│ │ ├── departmentValidators.js # Department validation rules
+│ │ ├── materialValidators.js # Material validation rules
+│ │ ├── notificationValidators.js # Notification validation rules
+│ │ ├── organizationValidators.js # Organization validation rules
+│ │ ├── taskValidators.js # Task validation (all types)
+│ │ ├── userValidators.js # User validation rules
+│ │ ├── validation.js # Validation result handler
+│ │ └── vendorValidators.js # Vendor validation rules
+│ ├── authMiddleware.js # JWT verification (verifyJWT, verifyRefresh_token)
+│ ├── authorization.js # Role-based authorization middleware
+│ └── rateLimiter.js # Rate limiting (production only)
+├── mock/
+│ ├── cleanSeedSetup.js # Seed data initialization script
+│ └── data.js # Mock data for seeding
+├── models/
+│ ├── plugins/
+│ │ └── softDelete.js # Universal soft delete plugin
+│ ├── AssignedTask.js # Assigned task model (discriminator)
+│ ├── Attachment.js # Attachment model (polymorphic parent)
+│ ├── BaseTask.js # Base task model (discriminator base)
+│ ├── Department.js # Department model with cascade
+│ ├── index.js # Model exports
+│ ├── Material.js # Material model
+│ ├── Notification.js # Notification model with TTL
+│ ├── Organization.js # Organization model (tenant)
+│ ├── ProjectTask.js # Project task model (discriminator)
+│ ├── RoutineTask.js # Routine task model (discriminator)
+│ ├── TaskActivity.js # Task activity model (ProjectTask/AssignedTask only)
+│ ├── TaskComment.js # Task comment model (threaded, max depth 3)
+│ ├── User.js # User model with authentication
+│ └── Vendor.js # Vendor model (external clients)
+├── routes/
+│ ├── attachmentRoutes.js # Attachment routes
+│ ├── authRoutes.js # Auth routes (public + protected)
+│ ├── departmentRoutes.js # Department routes
+│ ├── index.js # Route aggregator
+│ ├── materialRoutes.js # Material routes
+│ ├── notificationRoutes.js # Notification routes
+│ ├── organizationRoutes.js # Organization routes
+│ ├── taskRoutes.js # Task routes (all types)
+│ ├── userRoutes.js # User routes
+│ └── vendorRoutes.js # Vendor routes
+├── services/
+│ ├── emailService.js # Email sending (Nodemailer, Gmail SMTP, queue-based)
+│ └── notificationService.js # Notification creation and management
+├── templates/
+│ └── emailTemplates.js # HTML email templates
+├── utils/
+│ ├── authorizationMatrix.js # Authorization helper functions
+│ ├── constants.js # ALL constants (ONLY source of truth)
+│ ├── generateTokens.js # JWT token generation
+│ ├── helpers.js # Utility functions
+│ ├── logger.js # Winston logger configuration
+│ ├── materialTransform.js # Material data transformation
+│ ├── responseTransform.js # Response formatting
+│ ├── socket.js # Socket.IO event handlers
+│ ├── socketEmitter.js # Socket.IO event emitters
+│ ├── socketInstance.js # Socket.IO singleton
+│ ├── userStatus.js # User status tracking
+│ └── validateEnv.js # Environment validation
+├── tests/
+│ ├── unit/ # Unit tests
+│ ├── property/ # Property-based tests
+│ ├── globalSetup.js # Test setup
+│ ├── globalTeardown.js # Test cleanup
+│ └── setup.js # Test configuration
+├── .env # Environment variables
+├── app.js # Express app configuration
+├── jest.config.js # Jest configuration (ES modules)
+├── package.json # Dependencies and scripts
+└── server.js # Server startup and lifecycle
+
+````
+
+### Controller Template
+
+```javascript
+export const create = asyncHandler(async (req, res) => {
+  const result = await service.create(req.body);
+  res.status(201).json({ success: true, data: result });
+});
+````
+
+### Service Template
+
+```javascript
+export const create = async (data) => {
+  // Business logic here
+  return await Model.create(data);
+};
+```
+
+### Critical Backend Rules
+
+- Use ES Modules (`import`/`export`)
+- Wrap async handlers with `express-async-handler`
+- Use Mongoose discriminators for task types (BaseTask → ProjectTask/AssignedTask/RoutineTask)
+- Apply softDelete plugin to ALL models
+- Use sessions for transactions (cascade operations, multi-document updates)
+- Socket.IO singleton pattern via `utils/socketInstance.js`
+- Import constants from `utils/constants.js` - NEVER hardcode values
+- Validators in `middlewares/validators/*` are the ONLY source of truth for field names
 
 ## Frontend Architecture
 
-**Layer Flow:** Pages → Components → Services (API/Socket.IO)
+### Layer Flow
 
-### Architecture Overview
+Pages → Components → Redux (RTK Query) → API
 
-The frontend follows a layered architecture with clear separation of concerns:
+### Directory Map
 
-1. **Presentation Layer** (Pages): Route-level components that orchestrate data fetching and state management
-2. **Component Layer** (Components): Reusable UI components organized by function (cards, forms, filters, etc.)
-3. **State Layer** (Redux): Centralized state management with RTK Query for API caching
-4. **Service Layer** (Services): External integrations (Socket.IO, Cloudinary)
-5. **Utility Layer** (Utils): Helper functions, constants, error handling
+- `pages/` - Route components with data fetching
+- `components/` - Organized by type:
+  - `auth/` - AuthProvider, ProtectedRoute, PublicRoute
+  - `cards/` - Card components for list views
+  - `columns/` - DataGrid column definitions
+  - `common/` - Reusable MUI wrappers, filters, dialogs
+  - `filters/` - DataGrid filter components
+  - `forms/` - Domain-organized form components
+  - `lists/` - List components for user views
+- `redux/`
+  - `app/` - Store configuration
+  - `features/` - Feature slices and RTK Query APIs
+- `services/` - API and Socket.IO integration
+- `hooks/` - Custom hooks (useAuth, useSocket)
+- `layouts/` - Layout wrappers
+- `router/` - Route configuration
+- `theme/` - MUI customization
+- `utils/` - Shared utilities and constants
 
-### Layer Flow Diagram
-
-```
-User Interaction
-      ↓
-   Pages (Route Components)
-      ↓
-   Components (UI Components)
-      ↓
-   Redux Store (State Management)
-      ↓
-   RTK Query APIs (Data Fetching)
-      ↓
-   Backend API (HTTP/REST)
-      ↓
-   Database (MongoDB)
-
-Parallel Flow:
-   Socket.IO Client ←→ Socket.IO Server
-      ↓                    ↓
-   Event Handlers    Real-time Events
-      ↓
-   Redux Cache Invalidation
-```
-
-### Critical Files
-
-- **`utils/constants.js`** - Mirror backend constants exactly (MUST be synchronized)
-- **`hooks/useAuth.js`** - Authentication hook (login, logout, user state)
-- **`hooks/useSocket.js`** - Socket.IO hook (connect, disconnect, events)
-- **`redux/features/*`** - State management with RTK Query and slices
-- **`services/socketService.js`** - Socket.IO client service
-- **`services/socketEvents.js`** - Socket.IO event handlers
-- **`utils/errorHandler.js`** - Custom error class (AppError)
-
-### File Naming Conventions
-
-- **Components**: PascalCase `.jsx` (e.g., `UserCard.jsx`, `CreateUpdateUser.jsx`)
-- **Utilities**: camelCase `.js` (e.g., `constants.js`, `errorHandler.js`)
-- **Hooks**: camelCase `.js` with `use` prefix (e.g., `useAuth.js`, `useSocket.js`)
-- **Services**: camelCase `.js` (e.g., `socketService.js`)
-
-### Component Hierarchy
-
-```
-App.jsx (Root)
-├── AppTheme (Theme Provider)
-│   ├── RootLayout
-│   │   ├── PublicLayout (Public Routes)
-│   │   │   ├── Home
-│   │   │   ├── Login (LoginForm)
-│   │   │   └── Register (RegisterForm with multi-step)
-│   │   │       ├── UserDetailsStep
-│   │   │       ├── OrganizationDetailsStep
-│   │   │       ├── UploadAttachmentsStep
-│   │   │       └── ReviewStep
-│   │   └── DashboardLayout (Protected Routes)
-│   │       ├── Header (Navigation, NotificationMenu, UserMenu)
-│   │       ├── Sidebar (Navigation Links)
-│   │       ├── Main Content Area
-│   │       │   ├── Dashboard (Widgets, Charts)
-│   │       │   ├── Tasks (Three-Layer Pattern)
-│   │       │   │   └── TasksList → TaskCard
-│   │       │   ├── Users (Three-Layer Pattern)
-│   │       │   │   └── UsersList → UserCard
-│   │       │   ├── Materials (DataGrid Pattern)
-│   │       │   │   ├── MaterialFilter
-│   │       │   │   ├── MuiDataGrid
-│   │       │   │   └── CreateUpdateMaterial
-│   │       │   ├── Vendors (DataGrid Pattern)
-│   │       │   ├── Departments (DataGrid Pattern)
-│   │       │   └── Organizations (DataGrid Pattern)
-│   │       └── Footer
-│   └── ErrorBoundary (Error Handling)
-```
-
-### State Management Flow
-
-```
-Component
-   ↓
-useSelector (Read State)
-   ↓
-Redux Store
-   ├── auth slice (persisted)
-   │   ├── user
-   │   ├── isAuthenticated
-   │   └── isLoading
-   └── RTK Query APIs
-       ├── authApi
-       ├── userApi
-       ├── taskApi
-       ├── materialApi
-       ├── vendorApi
-       ├── departmentApi
-       ├── organizationApi
-       └── notificationApi
-
-Component
-   ↓
-useDispatch (Update State)
-   ↓
-Action/Mutation
-   ↓
-Redux Store Update
-   ↓
-Component Re-render
-```
-
-### Data Fetching Patterns
-
-**RTK Query Pattern:**
-
-```javascript
-// 1. Define API endpoint
-const materialApi = api.injectEndpoints({
-  endpoints: (builder) => ({
-    getMaterials: builder.query({
-      query: (params) => ({ url: "/materials", params }),
-      providesTags: ["Material"],
-    }),
-  }),
-});
-
-// 2. Use in component
-const { data, isLoading, error } = useGetMaterialsQuery({ page: 1, limit: 10 });
-
-// 3. Cache invalidation on mutation
-createMaterial: builder.mutation({
-  invalidatesTags: ["Material"],
-});
-```
-
-**Cache Tags:**
-
-- `Task`, `TaskActivity`, `TaskComment`
-- `User`, `Organization`, `Department`
-- `Material`, `Vendor`
-- `Notification`, `Attachment`
-
-### Real-time Update Flow
-
-```
-Backend Event Occurs
-   ↓
-Socket.IO Server Emits Event
-   ↓
-Socket.IO Client Receives Event
-   ↓
-socketEvents.js Handler
-   ↓
-Redux Cache Invalidation
-   ↓
-RTK Query Refetch
-   ↓
-Component Re-render with New Data
-   ↓
-Toast Notification (Optional)
-```
-
-**Event Types:**
-
-- `task:created`, `task:updated`, `task:deleted`, `task:restored`
-- `activity:created`, `activity:updated`
-- `comment:created`, `comment:updated`, `comment:deleted`
-- `notification:created`
-- `user:online`, `user:offline`, `user:away`
-
-### Error Handling Flow
-
-```
-Error Occurs
-   ↓
-Error Type?
-   ├── Component Error → ErrorBoundary → Fallback UI
-   ├── Route Error → RouteError → Error Page
-   ├── API Error → RTK Query Error → Toast Notification
-   └── Form Error → Field Error → Inline Error Message
-
-All Errors Logged to Console (Development)
-```
-
-### Form Submission Flow
-
-```
-User Fills Form
-   ↓
-react-hook-form Validation (Client-side)
-   ↓
-Valid?
-   ├── No → Display Field Errors
-   └── Yes → Submit to Backend
-       ↓
-   Backend Validation (express-validator)
-       ↓
-   Valid?
-       ├── No → Return 400 Error → Display Toast
-       └── Yes → Process Request
-           ↓
-       Success Response
-           ↓
-       RTK Query Cache Update
-           ↓
-       Toast Success Message
-           ↓
-       Close Dialog/Navigate
-```
-
-### Frontend File Structure
+### Complete Frontend File Structure
 
 ```
 client/
@@ -379,30 +227,30 @@ client/
 │   │   │   ├── UserColumns.jsx
 │   │   │   └── VendorColumns.jsx
 │   │   ├── common/
-│   │   │   ├── CustomDataGridToolbar.jsx  # DataGrid toolbar
+│   │   │   ├── CustomDataGridToolbar.jsx  # DataGrid toolbar (export, filter, columns)
 │   │   │   ├── CustomIcons.jsx            # Custom icons
-│   │   │   ├── ErrorBoundary.jsx          # Error boundary
+│   │   │   ├── ErrorBoundary.jsx          # Error boundary component
 │   │   │   ├── FilterChipGroup.jsx        # Active filters display
 │   │   │   ├── FilterDateRange.jsx        # Date range filter
 │   │   │   ├── FilterSelect.jsx           # Select filter
-│   │   │   ├── FilterTextField.jsx        # Text filter
-│   │   │   ├── GlobalSearch.jsx           # Global search bar
+│   │   │   ├── FilterTextField.jsx        # Text filter with debouncing
+│   │   │   ├── GlobalSearch.jsx           # Global search bar (Ctrl+K)
 │   │   │   ├── index.js                   # Common exports
-│   │   │   ├── MuiActionColumn.jsx        # DataGrid action column
+│   │   │   ├── MuiActionColumn.jsx        # DataGrid action column (View/Edit/Delete/Restore)
 │   │   │   ├── MuiCheckbox.jsx            # Checkbox input
-│   │   │   ├── MuiDataGrid.jsx            # DataGrid wrapper
-│   │   │   ├── MuiDatePicker.jsx          # Date picker
+│   │   │   ├── MuiDataGrid.jsx            # DataGrid wrapper (auto pagination conversion)
+│   │   │   ├── MuiDatePicker.jsx          # Date picker (UTC conversion)
 │   │   │   ├── MuiDateRangePicker.jsx     # Date range picker
-│   │   │   ├── MuiDialog.jsx              # Dialog wrapper
+│   │   │   ├── MuiDialog.jsx              # Dialog wrapper (accessibility props)
 │   │   │   ├── MuiDialogConfirm.jsx       # Confirmation dialog
-│   │   │   ├── MuiFileUpload.jsx          # File upload
+│   │   │   ├── MuiFileUpload.jsx          # File upload (Cloudinary)
 │   │   │   ├── MuiLoading.jsx             # Loading spinner
-│   │   │   ├── MuiMultiSelect.jsx         # Multi-select
+│   │   │   ├── MuiMultiSelect.jsx         # Multi-select autocomplete
 │   │   │   ├── MuiNumberField.jsx         # Number input
 │   │   │   ├── MuiRadioGroup.jsx          # Radio group
-│   │   │   ├── MuiResourceSelect.jsx      # Resource select
+│   │   │   ├── MuiResourceSelect.jsx      # Resource select (users/departments/materials/vendors)
 │   │   │   ├── MuiSelectAutocomplete.jsx  # Autocomplete select
-│   │   │   ├── MuiTextArea.jsx            # Text area
+│   │   │   ├── MuiTextArea.jsx            # Text area with character counter
 │   │   │   ├── MuiTextField.jsx           # Text input
 │   │   │   ├── MuiThemeDropDown.jsx       # Theme switcher
 │   │   │   ├── NotificationMenu.jsx       # Notification dropdown
@@ -435,26 +283,26 @@ client/
 │   │   ├── useAuth.js             # Authentication hook
 │   │   └── useSocket.js           # Socket.IO hook
 │   ├── layouts/
-│   │   ├── DashboardLayout.jsx    # Protected layout
+│   │   ├── DashboardLayout.jsx    # Protected layout (Header, Sidebar, Footer)
 │   │   ├── PublicLayout.jsx       # Public layout
 │   │   └── RootLayout.jsx         # Root layout
 │   ├── pages/
-│   │   ├── Dashboard.jsx          # Dashboard page
-│   │   ├── Departments.jsx        # Departments page
+│   │   ├── Dashboard.jsx          # Dashboard page (widgets, statistics)
+│   │   ├── Departments.jsx        # Departments page (DataGrid pattern)
 │   │   ├── ForgotPassword.jsx     # Forgot password page
 │   │   ├── Home.jsx               # Home page
-│   │   ├── Materials.jsx          # Materials page
+│   │   ├── Materials.jsx          # Materials page (DataGrid pattern)
 │   │   ├── NotFound.jsx           # 404 page
 │   │   ├── Organization.jsx       # Organization detail page
-│   │   ├── Organizations.jsx      # Organizations list page
-│   │   ├── Tasks.jsx              # Tasks page
-│   │   ├── Users.jsx              # Users page
-│   │   └── Vendors.jsx            # Vendors page
+│   │   ├── Organizations.jsx      # Organizations list page (Platform SuperAdmin)
+│   │   ├── Tasks.jsx              # Tasks page (Three-Layer pattern)
+│   │   ├── Users.jsx              # Users page (Three-Layer pattern)
+│   │   └── Vendors.jsx            # Vendors page (DataGrid pattern)
 │   ├── redux/
 │   │   ├── app/
-│   │   │   └── store.js           # Redux store configuration
+│   │   │   └── store.js           # Redux store configuration (persist auth)
 │   │   └── features/
-│   │       ├── api.js             # Base API configuration
+│   │       ├── api.js             # Base API configuration (RTK Query)
 │   │       ├── attachment/
 │   │       │   └── attachmentApi.js
 │   │       ├── auth/
@@ -482,9 +330,9 @@ client/
 │   │           ├── vendorApi.js
 │   │           └── vendorSlice.js
 │   ├── router/
-│   │   └── routes.jsx             # Route configuration
+│   │   └── routes.jsx             # Route configuration (lazy loading)
 │   ├── services/
-│   │   ├── socketEvents.js        # Socket.IO event handlers
+│   │   ├── socketEvents.js        # Socket.IO event handlers (cache invalidation)
 │   │   └── socketService.js       # Socket.IO client service
 │   ├── theme/
 │   │   ├── customizations/
@@ -497,10 +345,10 @@ client/
 │   │   │   ├── inputs.js          # Input customizations
 │   │   │   ├── navigation.js      # Navigation customizations
 │   │   │   └── surfaces.js        # Surface customizations
-│   │   ├── AppTheme.jsx           # Theme provider
-│   │   └── themePrimitives.js     # Theme primitives
+│   │   ├── AppTheme.jsx           # Theme provider (light/dark mode)
+│   │   └── themePrimitives.js     # Theme primitives (colors, spacing)
 │   ├── utils/
-│   │   ├── constants.js           # All constants (mirror backend)
+│   │   ├── constants.js           # ALL constants (MUST mirror backend exactly)
 │   │   └── errorHandler.js        # Custom error class
 │   ├── App.jsx                    # Root component
 │   └── main.jsx                   # Application entry point
@@ -508,2026 +356,318 @@ client/
 ├── eslint.config.js               # ESLint configuration
 ├── index.html                     # HTML template
 ├── package.json                   # Dependencies and scripts
-└── vite.config.js                 # Vite configuration
+└── vite.config.js                 # Vite configuration (code splitting, terser)
 ```
 
-## Services
+### Frontend Code Patterns
 
-### Socket.IO Service
+#### Admin Views (DataGrid Pattern)
 
-**File:** `services/socketService.js`
+```
+Page → MuiDataGrid → Columns + Filter + Form
+```
 
-**Purpose:** Manage WebSocket connection lifecycle
+- **Page**: RTK Query data fetching
+- **Columns**: Column configuration
+- **Filter**: Filtering UI
+- **Form**: Create/Update dialog
+
+**Use For**: Organizations, Departments, Materials, Vendors, Users (admin view)
+
+**When to Use**:
+
+- Resource management pages requiring CRUD operations
+- Pages with complex filtering, sorting, and pagination
+- Admin-level views with bulk operations
+- Data-heavy interfaces with many columns
+
+#### User Views (Three-Layer Pattern)
+
+```
+Page → List → Card
+```
+
+- **Page**: Data fetching and state
+- **List**: Collection renderer
+- **Card**: Individual item
+
+**Use For**: Tasks, Users (user view), Dashboard widgets
+
+**When to Use**:
+
+- Card-based layouts for better visual hierarchy
+- User-facing views (non-admin)
+- Mobile-responsive designs
+- Content-heavy displays
+
+#### Form Handling
 
 ```javascript
-class SocketService {
-  constructor() {
-    this.socket = null;
-  }
-
-  connect() {
-    if (this.socket?.connected) return;
-
-    this.socket = io(import.meta.env.VITE_API_URL.replace("/api", ""), {
-      withCredentials: true, // Send HTTP-only cookies
-      autoConnect: false,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-    });
-
-    this.socket.connect();
-  }
-
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-  }
-
-  on(event, handler) {
-    if (this.socket) {
-      this.socket.on(event, handler);
-    }
-  }
-
-  off(event, handler) {
-    if (this.socket) {
-      this.socket.off(event, handler);
-    }
-  }
-
-  emit(event, data) {
-    if (this.socket) {
-      this.socket.emit(event, data);
-    }
-  }
-}
-
-export default new SocketService();
-```
-
-### Socket Event Handlers
-
-**File:** `services/socketEvents.js`
-
-**Purpose:** Handle real-time events and invalidate cache
-
-```javascript
-import { store } from "../redux/app/store";
-import { taskApi } from "../redux/features/task/taskApi";
-import { notificationApi } from "../redux/features/notification/notificationApi";
-import { toast } from "react-toastify";
-
-export const setupSocketEventHandlers = (socket) => {
-  // Task events
-  socket.on("task:created", (task) => {
-    store.dispatch(taskApi.util.invalidateTags(["Task"]));
-    toast.info(`New task created: ${task.title}`);
-  });
-
-  socket.on("task:updated", (task) => {
-    store.dispatch(
-      taskApi.util.invalidateTags([{ type: "Task", id: task._id }])
-    );
-  });
-
-  socket.on("task:deleted", (task) => {
-    store.dispatch(taskApi.util.invalidateTags(["Task"]));
-    toast.warning(`Task deleted: ${task.title}`);
-  });
-
-  // Notification events
-  socket.on("notification:created", (notification) => {
-    store.dispatch(notificationApi.util.invalidateTags(["Notification"]));
-    toast.info(notification.message);
-  });
-
-  // User status events
-  socket.on("user:online", (user) => {
-    console.log("User online:", user);
-  });
-
-  socket.on("user:offline", (user) => {
-    console.log("User offline:", user);
-  });
-};
-```
-
-### Cloudinary Service
-
-**File:** `services/cloudinaryService.js`
-
-**Purpose:** Upload files directly to Cloudinary
-
-```javascript
-const CLOUDINARY_UPLOAD_PRESET = "your_upload_preset";
-const CLOUDINARY_CLOUD_NAME = "your_cloud_name";
-
-export const uploadToCloudinary = async (file, folder = "attachments") => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-  formData.append("folder", folder);
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
-    { method: "POST", body: formData }
-  );
-
-  const data = await response.json();
-  return {
-    url: data.secure_url,
-    publicId: data.public_id,
-    format: data.format,
-    size: data.bytes,
-  };
-};
-```
-
-## Hooks
-
-### useAuth Hook
-
-**File:** `hooks/useAuth.js`
-
-**Purpose:** Access authentication state and methods
-
-```javascript
-import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
-import { setUser, clearUser } from "../redux/features/auth/authSlice";
-import {
-  useLoginMutation,
-  useLogoutMutation,
-} from "../redux/features/auth/authApi";
-
-const useAuth = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const user = useSelector((state) => state.auth.user);
-  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
-
-  const [loginMutation] = useLoginMutation();
-  const [logoutMutation] = useLogoutMutation();
-
-  const login = async (credentials) => {
-    const result = await loginMutation(credentials).unwrap();
-    dispatch(setUser(result.user));
-    navigate("/dashboard");
-  };
-
-  const logout = async () => {
-    await logoutMutation().unwrap();
-    dispatch(clearUser());
-    navigate("/login");
-  };
-
-  return { user, isAuthenticated, login, logout };
-};
-
-export default useAuth;
-```
-
-### useSocket Hook
-
-**File:** `hooks/useSocket.js`
-
-**Purpose:** Access Socket.IO connection and methods
-
-```javascript
-import { useEffect } from "react";
-import socketService from "../services/socketService";
-
-const useSocket = () => {
-  useEffect(() => {
-    socketService.connect();
-    return () => {
-      socketService.disconnect();
-    };
-  }, []);
-
-  return {
-    on: socketService.on.bind(socketService),
-    off: socketService.off.bind(socketService),
-    emit: socketService.emit.bind(socketService),
-  };
-};
-
-export default useSocket;
-```
-
-## Utilities
-
-### Constants
-
-**File:** `utils/constants.js`
-
-**Purpose:** Mirror backend constants exactly (MUST be synchronized)
-
-```javascript
-// User Roles (descending privileges)
-export const USER_ROLES = {
-  SUPER_ADMIN: "SuperAdmin",
-  ADMIN: "Admin",
-  MANAGER: "Manager",
-  USER: "User",
-};
-
-// Task Status
-export const TASK_STATUS = ["To Do", "In Progress", "Completed", "Pending"];
-
-// Task Priority
-export const TASK_PRIORITY = ["Low", "Medium", "High", "Urgent"];
-
-// Material Categories
-export const MATERIAL_CATEGORIES = [
-  "Electrical",
-  "Mechanical",
-  "Plumbing",
-  "Hardware",
-  "Cleaning",
-  "Textiles",
-  "Consumables",
-  "Construction",
-  "Other",
-];
-
-// Pagination
-export const PAGINATION = {
-  DEFAULT_PAGE: 1,
-  DEFAULT_LIMIT: 10,
-  PAGE_SIZE_OPTIONS: [5, 10, 25, 50, 100],
-  MAX_LIMIT: 100,
-};
-```
-
-### Error Handler
-
-**File:** `utils/errorHandler.js`
-
-**Purpose:** Custom error class for application errors
-
-```javascript
-class AppError extends Error {
-  constructor(message, code, severity = "error", type = "general") {
-    super(message);
-    this.code = code;
-    this.severity = severity;
-    this.type = type;
-    this.name = "AppError";
-  }
-
-  static badRequest(message) {
-    return new AppError(message, "BAD_REQUEST", "error", "validation");
-  }
-
-  static unauthorized(message) {
-    return new AppError(message, "UNAUTHORIZED", "error", "auth");
-  }
-
-  static forbidden(message) {
-    return new AppError(message, "FORBIDDEN", "error", "auth");
-  }
-
-  static notFound(message) {
-    return new AppError(message, "NOT_FOUND", "error", "general");
-  }
-}
-
-export default AppError;
-```
-
-### Date Utilities
-
-**File:** `utils/dateUtils.js`
-
-**Purpose:** Date formatting and timezone conversion
-
-```javascript
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
-// Format date for display
-export const formatDate = (date, format = "MMM DD, YYYY") => {
-  return dayjs(date).format(format);
-};
-
-// Convert UTC to local timezone
-export const utcToLocal = (date) => {
-  return dayjs.utc(date).local();
-};
-
-// Convert local to UTC
-export const localToUtc = (date) => {
-  return dayjs(date).utc();
-};
-```
-
-### Authorization Helper
-
-**File:** `utils/authorizationHelper.js`
-
-**Purpose:** Check permissions for UI visibility
-
-```javascript
-import { USER_ROLES } from "./constants";
-
-export const hasPermission = (userRole, requiredRole) => {
-  const roleHierarchy = {
-    [USER_ROLES.SUPER_ADMIN]: 4,
-    [USER_ROLES.ADMIN]: 3,
-    [USER_ROLES.MANAGER]: 2,
-    [USER_ROLES.USER]: 1,
-  };
-
-  return roleHierarchy[userRole] >= roleHierarchy[requiredRole];
-};
-
-export const canAccessRoute = (user, route) => {
-  if (!route.requiredRole) return true;
-  return hasPermission(user.role, route.requiredRole);
-};
-```
-
-## Theme System
-
-### Theme Provider
-
-**File:** `theme/AppTheme.jsx`
-
-**Purpose:** Provide MUI theme with light/dark mode support
-
-```javascript
-import { createTheme, ThemeProvider } from "@mui/material/styles";
-import { useMemo, useState } from "react";
-import { brand, gray } from "./themePrimitives";
-import customizations from "./customizations";
-
-export default function AppTheme({ children }) {
-  const [mode, setMode] = useState("light");
-
-  const theme = useMemo(() => {
-    return createTheme({
-      palette: {
-        mode,
-        primary: { main: brand[500] },
-        background: {
-          default: mode === "light" ? gray[50] : gray[900],
-          paper: mode === "light" ? "#fff" : gray[800],
-        },
-      },
-      typography: {
-        fontFamily: "Inter, sans-serif",
-      },
-      components: customizations,
-    });
-  }, [mode]);
-
-  return <ThemeProvider theme={theme}>{children}</ThemeProvider>;
-}
-```
-
-### Theme Primitives
-
-**File:** `theme/themePrimitives.js`
-
-**Purpose:** Define color palettes and design tokens
-
-```javascript
-export const brand = {
-  50: "#F0F7FF",
-  100: "#CEE5FD",
-  200: "#9CCCFC",
-  // ... more shades
-  900: "#003A75",
-};
-
-export const gray = {
-  50: "#FBFCFE",
-  100: "#EAF0F5",
-  // ... more shades
-  900: "#0A1929",
-};
-```
-
-### Component Customizations
-
-**File:** `theme/customizations/index.js`
-
-**Purpose:** MUI component style overrides
-
-```javascript
-import { dataGridCustomizations } from "./dataGrid";
-import { inputsCustomizations } from "./inputs";
-import { navigationCustomizations } from "./navigation";
-// ... more customizations
-
-export default {
-  ...dataGridCustomizations,
-  ...inputsCustomizations,
-  ...navigationCustomizations,
-};
-```
-
-## UI Patterns
-
-### Admin Views (DataGrid Pattern)
-
-**Use for:** Organizations, Departments, Materials, Vendors, Users (admin view)
-
-**Required Files:**
-
-- `*Page.jsx` - Data fetching, state management, filters
-- `*Columns.jsx` - Column definitions for DataGrid
-- `*Filter.jsx` - Filter UI components
-- `CreateUpdate*.jsx` - Form modal (NOT `*Form.jsx`)
-
-**Required Components:**
-
-- `MuiDataGrid` - Auto-converts pagination (0-based MUI ↔ 1-based backend)
-- `MuiActionColumn` - Actions (View/Edit/Delete/Restore), auto-detects soft delete
-- `CustomDataGridToolbar` - Optional toolbar with export, filters, columns
-
-**Pattern:**
-
-```jsx
-// Page component
-const MaterialsPage = () => {
-  const [filters, setFilters] = useState({});
-  const [pagination, setPagination] = useState({ page: 0, pageSize: 10 });
-
-  const { data, isLoading, isFetching } = useGetMaterialsQuery({
-    page: pagination.page + 1, // Convert to 1-based
-    limit: pagination.pageSize,
-    ...filters,
-  });
-
-  const columns = getMaterialColumns({ onView, onEdit, onDelete, onRestore });
-
-  return (
-    <MuiDataGrid
-      rows={data?.materials || []}
-      columns={columns}
-      loading={isLoading || isFetching}
-      rowCount={data?.pagination?.totalCount || 0}
-      paginationModel={pagination}
-      onPaginationModelChange={setPagination}
-    />
-  );
-};
-```
-
-### User Views (Three-Layer Pattern)
-
-**Use for:** Tasks, Users (user view)
-
-**Structure:** Page → List → Card
-
-**Pattern:**
-
-- **Page**: Fetch data, manage state/filters, handle events
-- **List**: Layout, map items, delegate events to cards
-- **Card**: Display single item, wrap with `React.memo`
-
-**Example:**
-
-```jsx
-// TasksPage.jsx
-const TasksPage = () => {
-  const { data } = useGetTasksQuery();
-  return <TasksList tasks={data?.tasks} onTaskClick={handleClick} />;
-};
-
-// TasksList.jsx
-const TasksList = ({ tasks, onTaskClick }) => {
-  return (
-    <Grid container spacing={2}>
-      {tasks.map((task) => (
-        <Grid key={task._id} size={{ xs: 12, md: 6 }}>
-          <TaskCard task={task} onClick={onTaskClick} />
-        </Grid>
-      ))}
-    </Grid>
-  );
-};
-
-// TaskCard.jsx
-const TaskCard = React.memo(({ task, onClick }) => {
-  return <Card onClick={() => onClick(task)}>{task.title}</Card>;
-});
-```
-
-## Naming Conventions
-
-| Type     | Pattern         | Example                | Location              |
-| -------- | --------------- | ---------------------- | --------------------- |
-| Pages    | `*Page`         | `MaterialsPage.jsx`    | `pages/`              |
-| Forms    | `CreateUpdate*` | `CreateUpdateUser.jsx` | `components/forms/*/` |
-| Filters  | `*Filter`       | `UserFilter.jsx`       | `components/filters/` |
-| Columns  | `*Columns`      | `UserColumns.jsx`      | `components/columns/` |
-| Cards    | `*Card`         | `TaskCard.jsx`         | `components/cards/`   |
-| Lists    | `*List`         | `TasksList.jsx`        | `components/lists/`   |
-| Hooks    | `use*`          | `useAuth.js`           | `hooks/`              |
-| Services | camelCase       | `socketService.js`     | `services/`           |
-| Utils    | camelCase       | `errorHandler.js`      | `utils/`              |
-
-## Critical Rules
-
-### Field Names
-
-**Backend validators are the ONLY source of truth.** Always check `backend/middlewares/validators/*` before coding.
-
-**Common Patterns:**
-
-- Use `departmentId` not `department` (for references)
-- Use `assigneeId` not `assignee` (for references)
-- Use `vendorId` not `vendor` (for references)
-- Use `organizationId` not `organization` (for references)
-- Use `createdBy` not `creator` (for user references)
-- Use `updatedBy` not `updater` (for user references)
-
-**Validation:**
-
-1. Read validator file for the resource
-2. Match field names exactly (case-sensitive)
-3. Match validation rules (required, min, max, enum)
-4. Match query parameters for list endpoints
-
-### Constants
-
-**NEVER hardcode values.** Always import from `utils/constants.js`.
-
-**Examples:**
-
-- ❌ `if (status === "Completed")`
-- ✅ `if (status === TASK_STATUS[2])`
-- ❌ `role === "Admin"`
-- ✅ `role === USER_ROLES.ADMIN`
-- ❌ `priority === "High"`
-- ✅ `priority === TASK_PRIORITY[2]`
-
-### React Hook Form
-
-**Rules:**
-
-- ❌ NEVER use `watch()` method
-- ✅ ALWAYS use controlled components (`value` + `onChange`)
-- ✅ Use `control` prop for custom components
-- ✅ Use `register` for native inputs
-
-**Example:**
-
-```jsx
+// Use react-hook-form with controlled components
 const { control, handleSubmit } = useForm();
 
-// ❌ Wrong
-const watchedValue = watch("fieldName");
-
-// ✅ Correct
+// NEVER use watch() method
+// ❌ const values = watch();
+// ✅ Use controlled components with Controller
 <Controller
   name="fieldName"
   control={control}
-  render={({ field }) => <MuiTextField {...field} />}
+  render={({ field }) => <TextField {...field} />}
 />;
 ```
 
-### MUI v7 Syntax
+### Critical Frontend Rules
 
-**Grid Component:**
+- RTK Query for ALL API calls (automatic caching, invalidation)
+- react-hook-form with controlled components ONLY
+- **NEVER use `watch()` method** - use controlled components
+- MUI v7 Grid: Use `size` prop, NOT `item` prop
+- Dialogs: Include `disableEnforceFocus`, `disableRestoreFocus`, ARIA attributes
+- Socket.IO connects on auth, room-based subscriptions
+- Token refresh on 401 with automatic retry
+- Error boundaries for graceful error handling
+- React.memo for Card components
+- useCallback for event handlers
+- useMemo for computed values
 
-- ❌ NEVER use `item` prop: `<Grid item xs={12}>`
-- ✅ ALWAYS use `size` prop: `<Grid size={{ xs: 12, md: 6 }}>`
+## API Conventions
 
-**Autocomplete Component:**
-
-- ❌ NEVER use deprecated `renderTags`
-- ✅ ALWAYS use `slots` API: `slots={{ tag: CustomTag }}`
-
-### Dialogs
-
-**ALL dialogs MUST include:**
-
-```jsx
-<Dialog
-  disableEnforceFocus
-  disableRestoreFocus
-  aria-labelledby="dialog-title"
-  aria-describedby="dialog-description"
->
-  <DialogTitle id="dialog-title">Title</DialogTitle>
-  <DialogContent id="dialog-description">Content</DialogContent>
-</Dialog>
-```
-
-### Controller Responses
-
-**Display ALL fields returned by backend controllers.**
-
-**Process:**
-
-1. Check `backend/controllers/*` for response structure
-2. Identify all fields in response
-3. Display or use ALL fields in UI
-4. Never ignore available data
-
-### Performance
-
-**Optimization Rules:**
-
-- ✅ Wrap list/card components with `React.memo`
-- ✅ Use `useCallback` for event handlers passed to children
-- ✅ Use `useMemo` for expensive computations
-- ✅ Destructure props at component level to prevent re-renders
-
-**Example:**
-
-```jsx
-const TaskCard = React.memo(({ task, onClick }) => {
-  const handleClick = useCallback(() => {
-    onClick(task._id);
-  }, [task._id, onClick]);
-
-  const formattedDate = useMemo(() => {
-    return dayjs(task.createdAt).format("MMM DD, YYYY");
-  }, [task.createdAt]);
-
-  return <Card onClick={handleClick}>{formattedDate}</Card>;
-});
-```
-
-## Cross-Cutting Patterns
-
-### Pagination Conversion
-
-**Critical:** Backend uses 1-based pagination, MUI DataGrid uses 0-based
-
-```javascript
-// Frontend → Backend: Add 1
-const { data } = useGetMaterialsQuery({
-  page: pagination.page + 1, // 0 → 1, 1 → 2, etc.
-  limit: pagination.pageSize,
-});
-
-// Backend → Frontend: Subtract 1 (handled by MuiDataGrid component)
-// MuiDataGrid automatically converts internally
-```
-
-### Real-time Communication Architecture
+### RESTful Endpoints
 
 ```
-Backend Event
-   ↓
-Socket.IO Server (utils/socketInstance.js)
-   ↓
-Emit to Rooms (user:id, department:id, organization:id)
-   ↓
-Socket.IO Client (services/socketService.js)
-   ↓
-Event Handler (services/socketEvents.js)
-   ↓
-Redux Cache Invalidation (store.dispatch)
-   ↓
-RTK Query Refetch
-   ↓
-Component Re-render
+GET    /api/{resource}              # List (paginated)
+GET    /api/{resource}/:id          # Get single
+POST   /api/{resource}              # Create
+PUT    /api/{resource}/:id          # Update
+DELETE /api/{resource}/:id          # Soft delete
+PATCH  /api/{resource}/:id/restore  # Restore
 ```
 
-**Authentication:** HTTP-only cookies (same JWT as HTTP requests)
+### Query Parameters
 
-**Rooms:**
+- `page` - Page number (1-based on backend, 0-based on frontend DataGrid - auto-converted)
+- `limit` - Items per page (default: 10, max: 100)
+- `sortBy` - Sort field (default: createdAt)
+- `sortOrder` - asc/desc (default: desc)
+- `search` - Search query
+- `deleted` - Include soft-deleted (true/false)
 
-- `user:${userId}` - User-specific events
-- `department:${departmentId}` - Department-wide events
-- `organization:${organizationId}` - Organization-wide events
+### Response Format
 
-### File Upload Flow
-
-```
-User Selects File
-   ↓
-Client Validation (type, size)
-   ↓
-Upload to Cloudinary (Direct Upload)
-   ↓
-Receive Cloudinary URL
-   ↓
-Send Metadata to Backend
-   ↓
-Backend Creates Attachment Record
-   ↓
-Return Attachment Object
-   ↓
-Display in UI
-```
-
-**File Types:**
-
-- Image: .jpg, .jpeg, .png, .gif, .webp, .svg (max 10MB)
-- Video: .mp4, .avi, .mov, .wmv (max 100MB)
-- Document: .pdf, .doc, .docx, .xls, .xlsx (max 25MB)
-- Audio: .mp3, .wav, .ogg (max 20MB)
-- Other: (max 50MB)
-
-### Data Transformation Patterns
-
-**Response Formatting:**
-
-```javascript
-// Backend response
+```json
 {
-  success: true,
-  data: {
-    materials: [...],
-    pagination: {
-      page: 1,        // 1-based
-      limit: 10,
-      totalCount: 100,
-      totalPages: 10,
-      hasNext: true,
-      hasPrev: false
-    }
+  "success": true,
+  "data": {...},
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "totalCount": 100,
+    "totalPages": 10,
+    "hasNext": true,
+    "hasPrev": false
   }
 }
-
-// Frontend usage
-const { materials, pagination } = data;
 ```
 
-**Date Formatting:**
+### Error Response Format
 
-```javascript
-// Backend: UTC storage, ISO format response
-createdAt: "2024-01-15T10:30:00.000Z";
-
-// Frontend: Convert to local timezone for display
-const formattedDate = dayjs(task.createdAt).format("MMM DD, YYYY");
-// Output: "Jan 15, 2024"
-```
-
-**Population:**
-
-```javascript
-// Backend populates references
+```json
 {
-  _id: "123",
-  name: "Material A",
-  departmentId: {
-    _id: "dept1",
-    name: "Engineering"
-  },
-  organizationId: {
-    _id: "org1",
-    name: "Company A"
-  }
-}
-
-// Frontend accesses nested data
-material.departmentId.name // "Engineering"
-```
-
-### Timezone Management
-
-**Backend:**
-
-- All dates stored in UTC
-- `process.env.TZ = 'UTC'`
-- dayjs with UTC plugin
-- API responses in ISO 8601 format
-
-**Frontend:**
-
-- Automatic local timezone detection
-- UTC to local conversion for display
-- Local to UTC conversion for submission
-- DateTimePicker handles timezone automatically
-
-```javascript
-// Display: UTC → Local
-const displayDate = dayjs
-  .utc(task.createdAt)
-  .local()
-  .format("MMM DD, YYYY HH:mm");
-
-// Submit: Local → UTC
-const utcDate = dayjs(selectedDate).utc().toISOString();
-```
-
-### Multi-tenancy Isolation
-
-**Backend Scoping:**
-
-- All queries scoped to user's organization
-- Department-level scoping for Manager/User roles
-- Platform SuperAdmin can access all organizations
-
-**Frontend Scoping:**
-
-- User can only see data from their organization
-- UI elements hidden based on role and permissions
-- Authorization helper checks permissions for visibility
-
-```javascript
-// Check if user can access feature
-if (hasPermission(user.role, USER_ROLES.ADMIN)) {
-  // Show admin-only features
-}
-
-// Scope queries to user's context
-const { data } = useGetTasksQuery({
-  departmentId: user.departmentId, // Automatic scoping
-  organizationId: user.organizationId,
-});
-```
-
-## API Routes
-
-All routes prefixed with `/api`:
-
-### Authentication
-
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/refresh-token` - Refresh access token
-- `POST /api/auth/forgot-password` - Request password reset
-- `POST /api/auth/reset-password` - Reset password
-
-### Organizations
-
-- `GET /api/organizations` - List organizations (platform SuperAdmin only)
-- `GET /api/organizations/:id` - Get organization details
-- `POST /api/organizations` - Create organization (platform SuperAdmin only)
-- `PUT /api/organizations/:id` - Update organization
-- `DELETE /api/organizations/:id` - Soft delete organization
-- `PATCH /api/organizations/:id/restore` - Restore organization
-
-### Departments
-
-- `GET /api/departments` - List departments
-- `GET /api/departments/:id` - Get department details
-- `POST /api/departments` - Create department
-- `PUT /api/departments/:id` - Update department
-- `DELETE /api/departments/:id` - Soft delete department
-- `PATCH /api/departments/:id/restore` - Restore department
-
-### Users
-
-- `GET /api/users` - List users
-- `GET /api/users/:id` - Get user details
-- `POST /api/users` - Create user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Soft delete user
-- `PATCH /api/users/:id/restore` - Restore user
-- `PATCH /api/users/:id/status` - Update user status
-
-### Tasks
-
-- `GET /api/tasks` - List tasks
-- `GET /api/tasks/:id` - Get task details
-- `POST /api/tasks` - Create task
-- `PUT /api/tasks/:id` - Update task
-- `DELETE /api/tasks/:id` - Soft delete task
-- `PATCH /api/tasks/:id/restore` - Restore task
-
-### Materials
-
-- `GET /api/materials` - List materials
-- `GET /api/materials/:id` - Get material details
-- `POST /api/materials` - Create material
-- `PUT /api/materials/:id` - Update material
-- `DELETE /api/materials/:id` - Soft delete material
-- `PATCH /api/materials/:id/restore` - Restore material
-
-### Vendors
-
-- `GET /api/vendors` - List vendors
-- `GET /api/vendors/:id` - Get vendor details
-- `POST /api/vendors` - Create vendor
-- `PUT /api/vendors/:id` - Update vendor
-- `DELETE /api/vendors/:id` - Soft delete vendor (requires reassignment)
-- `PATCH /api/vendors/:id/restore` - Restore vendor
-
-### Notifications
-
-- `GET /api/notifications` - List notifications
-- `GET /api/notifications/:id` - Get notification details
-- `PATCH /api/notifications/:id/read` - Mark notification as read
-- `PATCH /api/notifications/read-all` - Mark all notifications as read
-- `DELETE /api/notifications/:id` - Delete notification
-
-### Attachments
-
-- `GET /api/attachments` - List attachments
-- `GET /api/attachments/:id` - Get attachment details
-- `POST /api/attachments` - Upload attachment
-- `DELETE /api/attachments/:id` - Delete attachment
-
-## Data Models
-
-### Model Relationships
-
-**Inheritance (Discriminator Pattern):**
-
-- BaseTask → ProjectTask, RoutineTask, AssignedTask
-
-**References (Population):**
-
-- User → Department → Organization (hierarchical)
-- ProjectTask → Vendor (required, external client)
-- ProjectTask → Materials (via TaskActivity, many-to-many with quantity)
-- ProjectTask → Assignees/Watchers (many-to-many, watchers HOD only)
-- AssignedTask → Materials (via TaskActivity, many-to-many with quantity)
-- RoutineTask → Materials (direct, many-to-many with quantity, no TaskActivity)
-- TaskActivity → parent (ProjectTask or AssignedTask ONLY, not RoutineTask)
-- TaskComment → parent (RoutineTask, ProjectTask, AssignedTask, TaskActivity, TaskComment)
-- Attachment → parent (any task type, TaskActivity, TaskComment)
-- Notification → recipient (User), entity (any resource)
-
-**Soft Delete:**
-
-- ALL models include `isDeleted` flag via softDelete plugin
-- Soft deleted resources can be restored
-- Queries automatically filter out soft deleted resources (unless explicitly included)
-
-### Key Models
-
-**Organization**: name, description, industry, address, phone, email, isDeleted, timestamps
-
-**Department**: name, description, organizationId, isDeleted, timestamps
-
-**User**: firstName, lastName, email, password, role, departmentId, organizationId, employeeId, position, phone, profilePicture, skills, status, isDeleted, timestamps
-
-**BaseTask**: title, description, status, priority, dueDate, tags, createdBy, updatedBy, departmentId, organizationId, taskType (discriminator), isDeleted, timestamps. Abstract base holding shared fields for all task types.
-
-**ProjectTask** (extends BaseTask): vendorId (required), estimatedCost, actualCost, currency, costHistory, assignees, watchers. Outsourced to external vendor. Materials added via TaskActivity.
-
-**RoutineTask** (extends BaseTask): materials (direct), startDate, dueDate. Daily routine task received from outlets. Materials added directly (no TaskActivity). Restricted status/priority.
-
-**AssignedTask** (extends BaseTask): assignedTo (single or group). Assigned to department user(s). Materials added via TaskActivity.
-
-**TaskActivity**: content, parentId (ProjectTask or AssignedTask ONLY), parentModel, materials, createdBy, updatedBy, departmentId, organizationId, isDeleted, timestamps. Does NOT exist for RoutineTask.
-
-**TaskComment**: content, parentId, parentModel, mentions, createdBy, updatedBy, departmentId, organizationId, isDeleted, timestamps
-
-**Material**: name, description, category, quantity, unitType, cost, price, currency, vendorId, departmentId, organizationId, isDeleted, timestamps
-
-**Vendor**: name, description, contactPerson, email, phone, address, departmentId, organizationId, isDeleted, timestamps. External client who takes and completes ProjectTasks.
-
-**Attachment**: filename, fileUrl, fileType, fileSize, parentId, parentModel, uploadedBy, departmentId, organizationId, isDeleted, timestamps
-
-**Notification**: title, message, type, isRead, recipientId, entityId, entityModel, organizationId, expiresAt, timestamps
-
-## Routing Configuration
-
-### Route Structure
-
-```javascript
-// routes.jsx
-createBrowserRouter([
-  {
-    path: "/",
-    element: <RootLayout />,
-    errorElement: <RouteError />,
-    children: [
-      // Public routes
-      {
-        element: <PublicLayout />,
-        children: [
-          {
-            index: true,
-            element: (
-              <PublicRoute>
-                <Home />
-              </PublicRoute>
-            ),
-          },
-          {
-            path: "login",
-            element: (
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            ),
-          },
-          {
-            path: "register",
-            element: (
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            ),
-          },
-        ],
-      },
-      // Protected routes
-      {
-        element: <DashboardLayout />,
-        children: [
-          {
-            path: "dashboard",
-            element: (
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: "tasks",
-            element: (
-              <ProtectedRoute>
-                <Tasks />
-              </ProtectedRoute>
-            ),
-          },
-          // ... more routes
-        ],
-      },
-    ],
-  },
-]);
-```
-
-### Public Routes (PublicLayout)
-
-- `/` - Home page
-- `/login` - Login form
-- `/register` - Registration form (multi-step wizard)
-- `/forgot-password` - Forgot password form
-- `/reset-password` - Reset password form
-
-**Behavior:**
-
-- Redirects authenticated users to `/dashboard`
-- No authentication required
-- No authorization checks
-
-### Protected Routes (DashboardLayout)
-
-- `/dashboard` - Dashboard page (widgets, statistics)
-- `/tasks` - Tasks page (three-layer pattern: TasksList → TaskCard)
-- `/users` - Users page (three-layer pattern: UsersList → UserCard)
-- `/materials` - Materials page (DataGrid pattern)
-- `/vendors` - Vendors page (DataGrid pattern)
-- `/admin/organization` - Organization detail page (Admin+)
-- `/admin/departments` - Departments page (DataGrid pattern, Admin+)
-- `/admin/users` - Users admin page (DataGrid pattern, Admin+)
-- `/platform/organizations` - Organizations page (Platform SuperAdmin only)
-
-**Behavior:**
-
-- Requires authentication (JWT token in cookie)
-- Redirects unauthenticated users to `/login`
-- Role-based access control (some routes restricted by role)
-
-### Error Routes
-
-- `*` - 404 Not Found page
-
-### Route Protection Patterns
-
-**ProtectedRoute Component:**
-
-```javascript
-const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return children;
-};
-```
-
-**PublicRoute Component:**
-
-```javascript
-const PublicRoute = ({ children }) => {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
-};
-```
-
-### Lazy Loading
-
-All page components are lazy-loaded for code splitting:
-
-```javascript
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Materials = lazy(() => import("./pages/Materials"));
-
-// Wrapped in Suspense with loading fallback
-<Suspense fallback={<MuiLoading fullScreen />}>
-  <Dashboard />
-</Suspense>;
-```
-
-**Benefits:**
-
-- Reduced initial bundle size
-- Faster initial page load
-- Better performance for large applications
-
-## State Management
-
-### Redux Store Structure
-
-```javascript
-{
-  auth: {
-    user: null,
-    isAuthenticated: false,
-    isLoading: false
-  },
-  [resourceApi.reducerPath]: {
-    // RTK Query cache
-    queries: {
-      'getMaterials({"page":1,"limit":10})': {
-        status: 'fulfilled',
-        data: { materials: [...], pagination: {...} },
-        endpointName: 'getMaterials'
-      }
-    },
-    mutations: {},
-    provided: {
-      Material: ['LIST', 'id1', 'id2'],
-      Task: ['LIST', 'id3']
-    }
-  }
+  "success": false,
+  "message": "Error message",
+  "errorCode": "ERROR_CODE",
+  "context": {}
 }
 ```
 
-### Redux Store Configuration
+## Testing
 
-**File:** `redux/app/store.js`
+### Backend Testing
 
-```javascript
-import { configureStore } from "@reduxjs/toolkit";
-import { setupListeners } from "@reduxjs/toolkit/query";
-import { persistStore, persistReducer } from "redux-persist";
-import storage from "redux-persist/lib/storage";
-import { api } from "../features/api";
-import authReducer from "../features/auth/authSlice";
+**Framework**: Jest with ES modules
 
-const persistConfig = {
-  key: "root",
-  storage,
-  whitelist: ["auth"], // Only persist auth slice
-};
+**Test Types**:
 
-const persistedAuthReducer = persistReducer(persistConfig, authReducer);
+- `tests/unit/` - Unit tests
+- `tests/property/` - Property-based tests (fast-check)
 
-export const store = configureStore({
-  reducer: {
-    [api.reducerPath]: api.reducer,
-    auth: persistedAuthReducer,
-  },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
-      },
-    }).concat(api.middleware),
-});
+**Database**: Use real MongoDB instance (NOT mongodb-memory-server)
 
-export const persistor = persistStore(store);
-setupListeners(store.dispatch);
+**Run with**: `--runInBand` to prevent race conditions
+
+**Tools**: supertest for API testing
+
+**Commands**:
+
+```bash
+npm test              # All tests
+npm run test:unit     # Unit only
+npm run test:property # Property-based only
 ```
 
-### RTK Query Base API
-
-**File:** `redux/features/api.js`
-
-```javascript
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-
-export const api = createApi({
-  reducerPath: "api",
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    credentials: "include", // Send HTTP-only cookies
-    prepareHeaders: (headers) => {
-      headers.set("Content-Type", "application/json");
-      return headers;
-    },
-  }),
-  tagTypes: [
-    "Task",
-    "TaskActivity",
-    "TaskComment",
-    "User",
-    "Organization",
-    "Department",
-    "Material",
-    "Vendor",
-    "Notification",
-    "Attachment",
-  ],
-  endpoints: () => ({}),
-});
-```
-
-### RTK Query Tags
-
-Used for cache invalidation:
-
-- `Task`, `TaskActivity`, `TaskComment` - Task-related resources
-- `User`, `Organization`, `Department` - User management
-- `Material`, `Vendor` - Inventory management
-- `Notification`, `Attachment` - Supporting resources
-
-**Tag Patterns:**
-
-```javascript
-// Provide tags (for queries)
-providesTags: (result) =>
-  result
-    ? [
-        ...result.materials.map(({ _id }) => ({ type: "Material", id: _id })),
-        { type: "Material", id: "LIST" },
-      ]
-    : [{ type: "Material", id: "LIST" }];
-
-// Invalidate tags (for mutations)
-invalidatesTags: [{ type: "Material", id: "LIST" }];
-invalidatesTags: (result, error, { id }) => [
-  { type: "Material", id },
-  { type: "Material", id: "LIST" },
-];
-```
-
-### Redux Slices
-
-**Auth Slice** (`redux/features/auth/authSlice.js`):
-
-```javascript
-const authSlice = createSlice({
-  name: "auth",
-  initialState: {
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-  },
-  reducers: {
-    setUser: (state, action) => {
-      state.user = action.payload;
-      state.isAuthenticated = true;
-    },
-    clearUser: (state) => {
-      state.user = null;
-      state.isAuthenticated = false;
-    },
-    setLoading: (state, action) => {
-      state.isLoading = action.payload;
-    },
-  },
-});
-
-// Selectors
-export const selectUser = (state) => state.auth.user;
-export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
-```
-
-### Redux Persist
-
-**Persisted slices:**
-
-- `auth` - User authentication state (user, isAuthenticated, isLoading)
-
-**Not persisted:**
-
-- RTK Query cache (auto-managed, refetched on mount)
-
-**Storage:** localStorage
-
-**Rehydration:** Automatic on app load
-
-### Resource API Pattern
-
-Each resource follows the same pattern:
-
-**File:** `redux/features/material/materialApi.js`
-
-```javascript
-export const materialApi = api.injectEndpoints({
-  endpoints: (builder) => ({
-    // List with pagination
-    getMaterials: builder.query({
-      query: (params) => ({ url: "/materials", params }),
-      providesTags: (result) => [
-        ...result.materials.map(({ _id }) => ({ type: "Material", id: _id })),
-        { type: "Material", id: "LIST" },
-      ],
-    }),
-
-    // Get single
-    getMaterial: builder.query({
-      query: (id) => `/materials/${id}`,
-      providesTags: (result, error, id) => [{ type: "Material", id }],
-    }),
-
-    // Create
-    createMaterial: builder.mutation({
-      query: (body) => ({ url: "/materials", method: "POST", body }),
-      invalidatesTags: [{ type: "Material", id: "LIST" }],
-    }),
-
-    // Update
-    updateMaterial: builder.mutation({
-      query: ({ id, ...body }) => ({
-        url: `/materials/${id}`,
-        method: "PUT",
-        body,
-      }),
-      invalidatesTags: (result, error, { id }) => [
-        { type: "Material", id },
-        { type: "Material", id: "LIST" },
-      ],
-    }),
-
-    // Delete (soft delete)
-    deleteMaterial: builder.mutation({
-      query: (id) => ({ url: `/materials/${id}`, method: "DELETE" }),
-      invalidatesTags: [{ type: "Material", id: "LIST" }],
-    }),
-
-    // Restore
-    restoreMaterial: builder.mutation({
-      query: (id) => ({ url: `/materials/${id}/restore`, method: "PATCH" }),
-      invalidatesTags: [{ type: "Material", id: "LIST" }],
-    }),
-  }),
-});
-
-export const {
-  useGetMaterialsQuery,
-  useGetMaterialQuery,
-  useCreateMaterialMutation,
-  useUpdateMaterialMutation,
-  useDeleteMaterialMutation,
-  useRestoreMaterialMutation,
-} = materialApi;
-```
-
-## Backend Patterns and Conventions
-
-### Backend Naming Conventions
-
-**Files:**
-
-- Controllers: `*Controllers.js` (e.g., `userControllers.js`)
-- Models: PascalCase `.js` (e.g., `User.js`, `BaseTask.js`)
-- Routes: `*Routes.js` (e.g., `userRoutes.js`)
-- Validators: `*Validators.js` (e.g., `userValidators.js`)
-- Services: camelCase `.js` (e.g., `emailService.js`)
-- Utils: camelCase `.js` (e.g., `constants.js`, `helpers.js`)
-- Middleware: camelCase `.js` (e.g., `authMiddleware.js`)
-
-**Variables and Functions:**
-
-- camelCase for variables and functions
-- PascalCase for classes and constructors
-- UPPER_SNAKE_CASE for constants
-
-**Database:**
-
-- Collections: lowercase plural (e.g., `users`, `organizations`)
-- Fields: camelCase (e.g., `firstName`, `createdAt`)
-- References: `*Id` suffix (e.g., `userId`, `departmentId`)
-
-### Controller Patterns
-
-**Standard Controller Structure:**
-
-```javascript
-import asyncHandler from "express-async-handler";
-import CustomError from "../errorHandler/CustomError.js";
-import { Model } from "../models/index.js";
-import { emitSocketEvent } from "../utils/socketEmitter.js";
-import { formatResponse } from "../utils/responseTransform.js";
-
-export const createResource = asyncHandler(async (req, res) => {
-  // 1. Extract and validate data
-  const { field1, field2 } = req.body;
-  const { userId, departmentId, organizationId } = req.user;
-
-  // 2. Check authorization and ownership
-  // (handled by authorization middleware)
-
-  // 3. Perform business logic
-  const resource = await Model.create({
-    field1,
-    field2,
-    createdBy: userId,
-    departmentId,
-    organizationId,
-  });
-
-  // 4. Emit Socket.IO event
-  emitSocketEvent("resource:created", resource, {
-    rooms: [`department:${departmentId}`, `organization:${organizationId}`],
-  });
-
-  // 5. Send response
-  res
-    .status(201)
-    .json(formatResponse(true, "Resource created successfully", { resource }));
-});
-```
-
-**Common Controller Patterns:**
-
-**Pagination:**
-
-```javascript
-const {
-  page = 1,
-  limit = 10,
-  sortBy = "createdAt",
-  sortOrder = "desc",
-} = req.query;
-
-const options = {
-  page: parseInt(page),
-  limit: parseInt(limit),
-  sort: { [sortBy]: sortOrder === "asc" ? 1 : -1 },
-  populate: ["departmentId", "organizationId"],
-};
-
-const result = await Model.paginate(query, options);
-```
-
-**Soft Delete:**
-
-```javascript
-// Delete
-await resource.softDelete(); // Sets isDeleted = true, deletedAt = now
-
-// Restore
-await resource.restore(); // Sets isDeleted = false, deletedAt = null
-```
-
-**Error Handling:**
-
-```javascript
-if (!resource) {
-  throw CustomError.notFound("Resource not found");
-}
-
-if (resource.isDeleted) {
-  throw CustomError.gone("Resource has been deleted");
-}
-
-if (!hasPermission) {
-  throw CustomError.forbidden("Insufficient permissions");
-}
-```
-
-**Multi-tenancy Scoping:**
-
-```javascript
-// Scope query to user's organization
-const query = {
-  organizationId: req.user.organizationId,
-  isDeleted: false,
-};
-
-// Scope to user's department (Manager/User)
-if (req.user.role === "Manager" || req.user.role === "User") {
-  query.departmentId = req.user.departmentId;
-}
-```
-
-### Service Patterns
-
-**Service Structure:**
-
-```javascript
-// services/resourceService.js
-import { Model } from "../models/index.js";
-import CustomError from "../errorHandler/CustomError.js";
-
-class ResourceService {
-  async create(data) {
-    // Business logic
-    const resource = await Model.create(data);
-    return resource;
-  }
-
-  async findById(id) {
-    const resource = await Model.findById(id);
-    if (!resource) {
-      throw CustomError.notFound("Resource not found");
-    }
-    return resource;
-  }
-
-  async update(id, data) {
-    const resource = await Model.findByIdAndUpdate(id, data, { new: true });
-    if (!resource) {
-      throw CustomError.notFound("Resource not found");
-    }
-    return resource;
-  }
-
-  async delete(id) {
-    const resource = await Model.findById(id);
-    if (!resource) {
-      throw CustomError.notFound("Resource not found");
-    }
-    await resource.softDelete();
-    return resource;
-  }
-}
-
-export default new ResourceService();
-```
-
-**Email Service Pattern:**
-
-```javascript
-// services/emailService.js
-import nodemailer from "nodemailer";
-import { emailTemplates } from "../templates/emailTemplates.js";
-
-class EmailService {
-  constructor() {
-    this.transporter = null;
-    this.queue = [];
-  }
-
-  async initialize() {
-    this.transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-  }
-
-  async sendEmail(to, subject, html) {
-    this.queue.push({ to, subject, html });
-    this.processQueue();
-  }
-
-  async processQueue() {
-    // Process email queue asynchronously
-  }
-}
-
-export default new EmailService();
-```
-
-### Model Patterns
-
-**Model Structure:**
-
-```javascript
-import mongoose from "mongoose";
-import softDeletePlugin from "./plugins/softDelete.js";
-
-const resourceSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: [true, "Name is required"],
-      trim: true,
-      maxlength: [100, "Name must not exceed 100 characters"],
-    },
-    description: {
-      type: String,
-      trim: true,
-      maxlength: [2000, "Description must not exceed 2000 characters"],
-    },
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Organization",
-      required: true,
-      index: true,
-    },
-    departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
-      required: true,
-      index: true,
-    },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-  },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  }
-);
-
-// Indexes
-resourceSchema.index({ organizationId: 1, departmentId: 1, createdAt: -1 });
-resourceSchema.index({ name: "text" });
-
-// Virtuals
-resourceSchema.virtual("fullName").get(function () {
-  return `${this.firstName} ${this.lastName}`;
-});
-
-// Pre-save hooks
-resourceSchema.pre("save", async function (next) {
-  // Validation logic
-  next();
-});
-
-// Instance methods
-resourceSchema.methods.toSafeObject = function () {
-  const obj = this.toObject();
-  delete obj.password;
-  return obj;
-};
-
-// Static methods
-resourceSchema.statics.findByOrganization = function (organizationId) {
-  return this.find({ organizationId, isDeleted: false });
-};
-
-// Apply soft delete plugin
-resourceSchema.plugin(softDeletePlugin);
-
-export default mongoose.model("Resource", resourceSchema);
-```
-
-**Discriminator Pattern (Task Models):**
-
-```javascript
-// BaseTask.js
-const baseTaskSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  taskType: String, // Discriminator key
-});
-
-export default mongoose.model("BaseTask", baseTaskSchema);
-
-// ProjectTask.js
-import BaseTask from "./BaseTask.js";
-
-const projectTaskSchema = new mongoose.Schema({
-  estimatedCost: Number,
-  actualCost: Number,
-  materials: [{ type: ObjectId, ref: "Material" }],
-});
-
-export default BaseTask.discriminator("ProjectTask", projectTaskSchema);
-```
-
-### Middleware Patterns
-
-**Authentication Middleware:**
-
-```javascript
-// middlewares/authMiddleware.js
-import jwt from "jsonwebtoken";
-import CustomError from "../errorHandler/CustomError.js";
-import { User } from "../models/index.js";
-
-export const verifyJWT = asyncHandler(async (req, res, next) => {
-  // Extract token from cookie
-  const token = req.cookies.access_token;
-
-  if (!token) {
-    throw CustomError.unauthorized("Access token required");
-  }
-
-  // Verify token
-  const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-
-  // Find user
-  const user = await User.findById(decoded.userId);
-
-  if (!user || user.isDeleted) {
-    throw CustomError.unauthorized("Invalid token");
-  }
-
-  // Attach user to request
-  req.user = user;
-  next();
-});
-```
-
-**Authorization Middleware:**
-
-```javascript
-// middlewares/authorization.js
-import CustomError from "../errorHandler/CustomError.js";
-import { hasPermission } from "../utils/authorizationMatrix.js";
-
-export const authorize = (resource, operation) => {
-  return async (req, res, next) => {
-    const { user } = req;
-    const { role, organizationId, departmentId } = user;
-
-    // Get allowed scopes from matrix
-    const allowedScopes = getAllowedScopes(role, resource, operation);
-
-    if (!allowedScopes || allowedScopes.length === 0) {
-      throw CustomError.forbidden("Insufficient permissions");
-    }
-
-    // Determine scope of request
-    const requestScope = determineRequestScope(req, user);
-
-    // Check if user has permission for this scope
-    if (!allowedScopes.includes(requestScope)) {
-      throw CustomError.forbidden("Insufficient permissions for this scope");
-    }
-
-    // Attach authorization info to request
-    req.authorization = {
-      allowedScopes,
-      requestScope,
-    };
-
-    next();
-  };
-};
-```
-
-**Validation Middleware:**
-
-```javascript
-// middlewares/validators/validation.js
-import { validationResult } from "express-validator";
-import CustomError from "../../errorHandler/CustomError.js";
-
-export const validate = (req, res, next) => {
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map((error) => ({
-      field: error.path,
-      message: error.msg,
-      value: error.value,
-    }));
-
-    throw CustomError.badRequest("Validation failed", {
-      errors: errorMessages,
-    });
-  }
-
-  next();
-};
-```
-
-### Route Patterns
-
-**Route Structure:**
-
-```javascript
-// routes/resourceRoutes.js
-import express from "express";
-import {
-  createResource,
-  getAllResources,
-  getResource,
-  updateResource,
-  deleteResource,
-  restoreResource,
-} from "../controllers/resourceControllers.js";
-import { verifyJWT } from "../middlewares/authMiddleware.js";
-import { authorize } from "../middlewares/authorization.js";
-import {
-  validateCreateResource,
-  validateGetAllResources,
-  validateGetResource,
-  validateUpdateResource,
-} from "../middlewares/validators/resourceValidators.js";
-
-const router = express.Router();
-
-// Public routes (none for resources)
-
-// Protected routes
-router.use(verifyJWT); // All routes below require authentication
-
-router
-  .route("/")
-  .get(authorize("Resource", "read"), validateGetAllResources, getAllResources)
-  .post(
-    authorize("Resource", "create"),
-    validateCreateResource,
-    createResource
-  );
-
-router
-  .route("/:resourceId")
-  .get(authorize("Resource", "read"), validateGetResource, getResource)
-  .put(authorize("Resource", "update"), validateUpdateResource, updateResource)
-  .delete(authorize("Resource", "delete"), deleteResource);
-
-router
-  .route("/:resourceId/restore")
-  .patch(authorize("Resource", "update"), restoreResource);
-
-export default router;
-```
-
-**Route Aggregation:**
-
-```javascript
-// routes/index.js
-import express from "express";
-import authRoutes from "./authRoutes.js";
-import userRoutes from "./userRoutes.js";
-import organizationRoutes from "./organizationRoutes.js";
-// ... more routes
-
-const router = express.Router();
-
-router.use("/auth", authRoutes);
-router.use("/users", userRoutes);
-router.use("/organizations", organizationRoutes);
-// ... more routes
-
-export default router;
-```
-
-### Error Handling Patterns
-
-**Custom Error Class:**
-
-```javascript
-// errorHandler/CustomError.js
-class CustomError extends Error {
-  constructor(message, statusCode, errorCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.errorCode = errorCode;
-    this.isOperational = true;
-    Error.captureStackTrace(this, this.constructor);
-  }
-
-  static badRequest(message, errorCode = "BAD_REQUEST") {
-    return new CustomError(message, 400, errorCode);
-  }
-
-  static unauthorized(message, errorCode = "UNAUTHORIZED") {
-    return new CustomError(message, 401, errorCode);
-  }
-
-  static forbidden(message, errorCode = "FORBIDDEN") {
-    return new CustomError(message, 403, errorCode);
-  }
-
-  static notFound(message, errorCode = "NOT_FOUND") {
-    return new CustomError(message, 404, errorCode);
-  }
-
-  static conflict(message, errorCode = "CONFLICT") {
-    return new CustomError(message, 409, errorCode);
-  }
-
-  static gone(message, errorCode = "GONE") {
-    return new CustomError(message, 410, errorCode);
-  }
-
-  static internalServer(message, errorCode = "INTERNAL_SERVER_ERROR") {
-    return new CustomError(message, 500, errorCode);
-  }
-}
-
-export default CustomError;
-```
-
-**Global Error Handler:**
-
-```javascript
-// errorHandler/ErrorController.js
-const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
-
-  // Log error
-  console.error(err);
-
-  // Mongoose bad ObjectId
-  if (err.name === "CastError") {
-    error = CustomError.badRequest("Invalid ID format");
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    error = CustomError.conflict(`${field} already exists`);
-  }
-
-  // Mongoose validation error
-  if (err.name === "ValidationError") {
-    const messages = Object.values(err.errors).map((e) => e.message);
-    error = CustomError.badRequest(messages.join(", "));
-  }
-
-  // JWT errors
-  if (err.name === "JsonWebTokenError") {
-    error = CustomError.unauthorized("Invalid token");
-  }
-
-  if (err.name === "TokenExpiredError") {
-    error = CustomError.unauthorized("Token expired");
-  }
-
-  res.status(error.statusCode || 500).json({
-    success: false,
-    message: error.message || "Internal server error",
-    errorCode: error.errorCode || "INTERNAL_SERVER_ERROR",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
-};
-
-export default errorHandler;
-```
-
-### Utility Patterns
-
-**Response Formatting:**
-
-```javascript
-// utils/responseTransform.js
-export const formatResponse = (success, message, data = null) => ({
-  success,
-  message,
-  ...(data && { data }),
-});
-
-export const formatPaginatedResponse = (
-  success,
-  message,
-  resourceName,
-  docs,
-  pagination
-) => ({
-  success,
-  message,
-  data: {
-    [resourceName]: docs,
-    pagination: {
-      page: pagination.page,
-      limit: pagination.limit,
-      totalCount: pagination.totalDocs,
-      totalPages: pagination.totalPages,
-      hasNext: pagination.hasNextPage,
-      hasPrev: pagination.hasPrevPage,
-    },
-  },
-});
-```
-
-**Socket.IO Emitter:**
-
-```javascript
-// utils/socketEmitter.js
-import { getIO } from "./socketInstance.js";
-
-export const emitToRooms = (event, data, rooms) => {
-  const io = getIO();
-  rooms.forEach((room) => {
-    io.to(room).emit(event, data);
-  });
-};
-
-export const emitTaskEvent = (event, task) => {
-  emitToRooms(event, task, [
-    `department:${task.departmentId}`,
-    `organization:${task.organizationId}`,
-  ]);
-};
-
-export const emitUserEvent = (event, user) => {
-  emitToRooms(event, user, [
-    `user:${user._id}`,
-    `department:${user.departmentId}`,
-    `organization:${user.organizationId}`,
-  ]);
-};
-```
-
----
-
-**Last Updated**: December 5, 2024
-**Next Review**: After major architecture changes or new patterns introduced
+**Coverage Goals**:
+
+- Statements: 80%+
+- Branches: 75%+
+- Functions: 80%+
+- Lines: 80%+
+
+### Frontend Testing (Optional)
+
+- Vitest + React Testing Library
+- E2E: Playwright or Cypress
+
+## Critical Rules (MUST FOLLOW)
+
+1. **Field Names**: Backend validators (`middlewares/validators/*`) are the ONLY source of truth
+2. **Constants**: Import from `utils/constants.js` - NEVER hardcode values
+3. **React Hook Form**: NEVER use `watch()` - use controlled components only
+4. **MUI v7 Grid**: Use `size` prop, NOT `item` prop
+5. **Pagination**: Backend 1-based, frontend DataGrid 0-based (auto-converted)
+6. **Transactions**: Use sessions for cascade operations
+7. **Soft Delete**: Never hard delete - use soft delete with cascade
+8. **Multi-Tenancy**: Always filter by organization to prevent cross-tenant access
+9. **Authorization**: Check permissions via middleware before controller
+10. **Layer Separation**: Never skip layers - maintain Routes → Controllers → Services → Models
+11. **Socket.IO**: Singleton pattern, room-based broadcasting
+12. **Error Handling**: Use CustomError class with typed methods
+13. **Logging**: Use winston logger (not console.log)
+14. **Performance**: React.memo, useCallback, useMemo for optimization
+15. **Security**: JWT in HTTP-only cookies, bcrypt ≥12 salt rounds
+
+## Implementation Order
+
+### Phase 1: Backend Foundation
+
+1. **Core Foundation** (FIRST):
+
+   - Configuration files (db, cors, authorization matrix)
+   - Error handling infrastructure
+   - Utility functions (constants FIRST, then logger, helpers, tokens)
+   - Middleware (auth, authorization, rate limiter)
+   - Services (email, notification)
+   - Email templates
+   - Socket.IO infrastructure
+   - Soft delete plugin (CRITICAL)
+   - App and server setup
+
+2. **Models** (SECOND):
+
+   - Create all 13 models in dependency order
+   - Organization → Department → User → Vendor → Material → BaseTask → ProjectTask/RoutineTask/AssignedTask → TaskActivity → TaskComment → Attachment → Notification
+
+3. **Routes → Validators → Controllers** (THIRD):
+
+   - For EACH resource, implement in order: Routes → Validators → Controllers
+   - Auth → Organization → Department → User → Vendor → Material → Task → TaskActivity → TaskComment → Attachment → Notification
+
+4. **Route Aggregation** (FOURTH):
+   - Aggregate all routes in routes/index.js
+   - Test all endpoints
+
+### Phase 2: Frontend Foundation
+
+1. **Core Foundation** (FIRST):
+
+   - Project setup
+   - Constants (MUST mirror backend exactly)
+   - Utility functions (errorHandler, dateUtils)
+   - Services (socket, cloudinary)
+   - Hooks (useSocket, useAuth)
+   - Theme infrastructure
+
+2. **Redux Store** (SECOND):
+
+   - Base API configuration
+   - Auth slice
+   - Store configuration with persistence
+
+3. **Redux API Endpoints** (THIRD):
+
+   - Create all 11 API endpoints in dependency order
+   - Auth → Organization → Department → User → Vendor → Material → Task → TaskActivity → TaskComment → Attachment → Notification
+
+4. **Common Components** (FOURTH):
+
+   - Form components
+   - DataGrid components
+   - Filter components
+   - Dialog components
+   - Loading components
+   - Utility components
+
+5. **Resource-Specific Components** (FIFTH):
+
+   - For each resource: Columns → Cards → Lists → Filters → Forms
+
+6. **Layouts** (SIXTH):
+
+   - RootLayout, PublicLayout, DashboardLayout
+   - ProtectedRoute, PublicRoute
+
+7. **Pages** (SEVENTH):
+
+   - Public pages: Home, Login, Register, ForgotPassword, ResetPassword
+   - Protected pages: Dashboard, Organizations, Departments, Users, Materials, Vendors, Tasks, TaskDetail, NotFound
+
+8. **Routing** (EIGHTH):
+
+   - Route configuration with lazy loading
+
+9. **App Entry Point** (NINTH):
+   - App.jsx with theme, Redux, router, Socket.IO, toast, error boundary
+   - main.jsx with React DOM render
+
+## Architecture Principles
+
+### Separation of Concerns
+
+- **Routes**: Define endpoints, apply middleware
+- **Controllers**: Handle HTTP requests/responses
+- **Services**: Contain business logic
+- **Models**: Define data structure and validation
+
+### Single Responsibility
+
+Each file/function has one clear purpose
+
+### DRY (Don't Repeat Yourself)
+
+- Constants in `utils/constants.js`
+- Reusable components in `components/common/`
+- Shared utilities in `utils/`
+
+### Dependency Injection
+
+Pass dependencies as parameters, not global imports
+
+### Error Handling
+
+- Consistent error responses
+- CustomError class with typed methods
+- Global error handler middleware
+
+### Security First
+
+- Authentication before authorization
+- Input validation before business logic
+- SQL/NoSQL injection prevention
+- XSS protection
+- CSRF protection
+
+### Performance Optimization
+
+- Database indexing
+- Query optimization
+- Caching with RTK Query
+- React.memo, useCallback, useMemo
+- Lazy loading
+- Code splitting
+
+### Scalability
+
+- Modular architecture
+- Horizontal scaling support
+- Stateless authentication (JWT)
+- Database connection pooling
+- Load balancing ready

@@ -1,115 +1,100 @@
+// backend/errorHandler/CustomError.js
+
 /**
- * Custom Error Class for standardized error handling across the application
- * Provides consistent error responses with status codes and error codes
+ * Standardized error codes mapping to HTTP status codes
  */
+const ERROR_CODE_MAPPING = {
+  400: "VALIDATION_ERROR",
+  401: "AUTHENTICATION_ERROR",
+  403: "AUTHORIZATION_ERROR",
+  404: "NOT_FOUND_ERROR",
+  409: "CONFLICT_ERROR",
+  429: "TOO_MANY_REQUESTS_ERROR",
+  500: "INTERNAL_SERVER_ERROR"
+};
 
+/**
+ * Enhanced CustomError class with consistent error codes and comprehensive context
+ */
 class CustomError extends Error {
-  /**
-   * @param {string} message - Error message
-   * @param {string} errorCode - Machine-readable error code
-   * @param {number} statusCode - HTTP status code
-   */
-  constructor(message, errorCode = "INTERNAL_ERROR", statusCode = 500) {
+  constructor(
+    message,
+    statusCode = 500,
+    errorCode = null,
+    context = {}
+  ) {
     super(message);
-    this.name = "CustomError";
-    this.errorCode = errorCode;
+
     this.statusCode = statusCode;
-    this.isOperational = true; // Distinguishes operational errors from programming errors
+    this.status = `${statusCode}`.startsWith("4") ? "fail" : "error";
 
-    // Capture stack trace
-    Error.captureStackTrace(this, this.constructor);
+    // Use standardized error code if not provided
+    this.errorCode = errorCode || ERROR_CODE_MAPPING[statusCode] || "INTERNAL_SERVER_ERROR";
+
+    this.isOperational = true;
+    this.timestamp = new Date().toISOString();
+    this.context = context;
+
+    // Capture stack trace for debugging
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 
   /**
-   * Factory method for 400 Bad Request errors
-   * @param {string} message - Error message
-   * @returns {CustomError}
+   * Create a validation error with consistent error code
    */
-  static badRequest(message = "Bad Request") {
-    return new CustomError(message, "BAD_REQUEST", 400);
+  static validation(message, context = {}) {
+    return new CustomError(message, 400, "VALIDATION_ERROR", context);
   }
 
   /**
-   * Factory method for 401 Unauthorized errors (Not Authenticated)
-   * @param {string} message - Error message
-   * @returns {CustomError}
+   * Create an authentication error with consistent error code
    */
-  static unauthenticated(message = "Unauthenticated - Please login") {
-    return new CustomError(message, "UNAUTHENTICATED", 401);
+  static authentication(message, context = {}) {
+    return new CustomError(message, 401, "AUTHENTICATION_ERROR", context);
   }
 
   /**
-   * Factory method for 403 Forbidden errors (Authenticated but Insufficient Permissions)
-   * @param {string} message - Error message
-   * @returns {CustomError}
+   * Create an authorization error with consistent error code
    */
-  static forbidden(message = "Forbidden - Insufficient permissions") {
-    return new CustomError(message, "FORBIDDEN", 403);
+  static authorization(message, context = {}) {
+    return new CustomError(message, 403, "AUTHORIZATION_ERROR", context);
   }
 
   /**
-   * Alias for backward compatibility
-   * @deprecated Use unauthenticated() instead
+   * Create a not found error with consistent error code
    */
-  static unauthorized(message = "Unauthorized - Please login") {
-    return CustomError.unauthenticated(message);
+  static notFound(message, context = {}) {
+    return new CustomError(message, 404, "NOT_FOUND_ERROR", context);
   }
 
   /**
-   * Factory method for 404 Not Found errors
-   * @param {string} message - Error message
-   * @returns {CustomError}
+   * Create a conflict error with consistent error code
    */
-  static notFound(message = "Resource not found") {
-    return new CustomError(message, "NOT_FOUND", 404);
+  static conflict(message, context = {}) {
+    return new CustomError(message, 409, "CONFLICT_ERROR", context);
   }
 
   /**
-   * Factory method for 409 Conflict errors
-   * @param {string} message - Error message
-   * @returns {CustomError}
+   * Create an internal server error with consistent error code
    */
-  static conflict(message = "Resource conflict") {
-    return new CustomError(message, "CONFLICT", 409);
+  static internal(message, context = {}) {
+    return new CustomError(message, 500, "INTERNAL_SERVER_ERROR", context);
   }
 
   /**
-   * Factory method for 422 Unprocessable Entity errors
-   * @param {string} message - Error message
-   * @returns {CustomError}
-   */
-  static validationError(message = "Validation failed") {
-    return new CustomError(message, "VALIDATION_ERROR", 422);
-  }
-
-  /**
-   * Factory method for 500 Internal Server errors
-   * @param {string} message - Error message
-   * @returns {CustomError}
-   */
-  static internalError(message = "Internal Server Error") {
-    return new CustomError(message, "INTERNAL_ERROR", 500);
-  }
-
-  /**
-   * Factory method for 503 Service Unavailable errors
-   * @param {string} message - Error message
-   * @returns {CustomError}
-   */
-  static serviceUnavailable(message = "Service temporarily unavailable") {
-    return new CustomError(message, "SERVICE_UNAVAILABLE", 503);
-  }
-
-  /**
-   * Convert error to JSON format for API responses
-   * @returns {Object}
+   * Convert the error to a JSON representation
    */
   toJSON() {
     return {
-      success: false,
       message: this.message,
-      errorCode: this.errorCode,
       statusCode: this.statusCode,
+      status: this.status,
+      errorCode: this.errorCode,
+      timestamp: this.timestamp,
+      isOperational: this.isOperational,
+      context: this.context
     };
   }
 }
