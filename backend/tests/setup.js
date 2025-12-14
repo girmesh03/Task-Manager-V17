@@ -1,90 +1,62 @@
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import logger from "../utils/logger.js";
 
-// Configure MongoDB Memory Server environment
-process.env.MONGOMS_SYSTEM_BINARY = process.env.MONGOMS_SYSTEM_BINARY || '';
-process.env.MONGOMS_DOWNLOAD_MIRROR = process.env.MONGOMS_DOWNLOAD_MIRROR || '';
-process.env.MONGOMS_VERSION = process.env.MONGOMS_VERSION || '7.0.0';
-
-// Global test setup for MongoDB Memory Server
-let mongoServer;
+// Global test setup for Real MongoDB
+// CRITICAL: Per specification, tests MUST use real MongoDB, NOT MongoDB Memory Server
 
 // Setup before all tests
 beforeAll(async () => {
+  try {
+    // Connect to real MongoDB using MONGODB_URI from environment
+    const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/task-manager-test";
 
-  // Only start MongoDB Memory Server if not in CI or if explicitly requested
-  if (process.env.USE_MEMORY_DB !== "false") {
-    try {
-      // Start MongoDB Memory Server with optimized settings
-      mongoServer = await MongoMemoryServer.create({
-        binary: {
-          version: "7.0.0", // Use stable MongoDB version
-          downloadDir: "./mongodb-binaries", // Cache binaries locally
-        },
-        instance: {
-          dbName: "task-manager-test",
-          port: 0, // Use random available port
-        },
-      }, {
-        timeout: 120000, // 2 minute timeout for download & startup
-      });
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 30000, // 30 seconds
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10, // Connection pool size
+      minPoolSize: 2,
+    });
 
-      const mongoUri = mongoServer.getUri();
+    logger.info(`Connected to MongoDB for testing: ${mongoUri}`);
 
-      // Connect to the in-memory database
-      await mongoose.connect(mongoUri, {
-        serverSelectionTimeoutMS: 30000, // 30 seconds
-        socketTimeoutMS: 45000,
-      });
-
-      console.log("Connected to MongoDB Memory Server for testing");
-    } catch (error) {
-      console.warn(
-        "MongoDB Memory Server failed to start, using mock connection:",
-        error.message
-      );
-      // Fallback to mock connection for structure tests
-      mongoose.connection.readyState = 1; // Mock connected state
+    // Clear all collections before tests
+    const collections = mongoose.connection.collections;
+    for (const key in collections) {
+      await collections[key].deleteMany({});
     }
-  } else {
-    console.log("Skipping MongoDB Memory Server (USE_MEMORY_DB=false)");
-    // Mock connection for structure validation tests
-    mongoose.connection.readyState = 1;
+  } catch (error) {
+    logger.error("MongoDB connection failed:", error);
+    throw new Error(`Failed to connect to MongoDB: ${error.message}`);
   }
-}, 180000); // 3 minute timeout for beforeAll
+}, 60000); // 1 minute timeout for beforeAll
 
 // Cleanup after each test
 afterEach(async () => {
-  if (mongoose.connection.readyState === 1 && mongoServer) {
+  if (mongoose.connection.readyState === 1) {
     try {
-      // Clear all collections after each test
+      // Clear all collections after each test to ensure isolation
       const collections = mongoose.connection.collections;
       for (const key in collections) {
         const collection = collections[key];
         await collection.deleteMany({});
       }
     } catch (error) {
-      console.warn("Failed to clear collections:", error.message);
+      logger.warn("Failed to clear collections:", error.message);
     }
   }
 });
 
 // Cleanup after all tests
 afterAll(async () => {
-  if (mongoServer) {
-    try {
-      // Close mongoose connection
-      if (mongoose.connection.readyState === 1) {
-        await mongoose.connection.dropDatabase();
-        await mongoose.connection.close();
-      }
-
-      // Stop MongoDB Memory Server
-      await mongoServer.stop();
-      console.log("MongoDB Memory Server stopped");
-    } catch (error) {
-      console.warn("Error during cleanup:", error.message);
+  try {
+    if (mongoose.connection.readyState === 1) {
+      // Drop test database and close connection
+      await mongoose.connection.dropDatabase();
+      await mongoose.connection.close();
+      logger.info("MongoDB connection closed after tests");
     }
+  } catch (error) {
+    logger.warn("Error during cleanup:", error.message);
   }
 }, 30000);
 

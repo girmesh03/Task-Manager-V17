@@ -1,6 +1,7 @@
 // backend/services/emailService.js
 import nodemailer from "nodemailer";
 import CustomError from "../errorHandler/CustomError.js";
+import logger from "../utils/logger.js";
 
 /**
  * Email Service - Handles email sending functionality using nodemailer
@@ -36,9 +37,9 @@ class EmailService {
 
       // Verify connection configuration
       await this.transporter.verify();
-      console.log("Email service initialized successfully");
+      logger.info("Email service initialized successfully");
     } catch (error) {
-      console.error("Email service initialization failed:", error);
+      logger.error("Email service initialization failed:", error);
       throw CustomError.internal("Failed to initialize email service", {
         errorMessage: error.message,
         errorName: error.name,
@@ -88,12 +89,12 @@ class EmailService {
 
       try {
         await this.sendEmail(emailItem);
-        console.log(`Email sent successfully to ${emailItem.to}`);
+        logger.info(`Email sent successfully to ${emailItem.to}`);
       } catch (error) {
         emailItem.attempts++;
 
         if (emailItem.attempts < this.retryAttempts) {
-          console.log(
+          logger.warn(
             `Email failed, retrying (${emailItem.attempts}/${this.retryAttempts}):`,
             error.message
           );
@@ -103,7 +104,7 @@ class EmailService {
             this.emailQueue.push(emailItem);
           }, this.retryDelay);
         } else {
-          console.error(
+          logger.error(
             `Email failed permanently after ${this.retryAttempts} attempts:`,
             error
           );
