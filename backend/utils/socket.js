@@ -4,7 +4,6 @@ import { User } from "../models/index.js";
 import { Server as SocketIOServer } from "socket.io";
 import checkUserStatus from "./userStatus.js";
 import CustomError from "../errorHandler/CustomError.js";
-import logger from "./logger.js";
 
 // Track active connections for graceful cleanup
 const activeConnections = new Map();
@@ -138,7 +137,7 @@ const socketAuth = async (socket, next) => {
     socket.user = user;
     next();
   } catch (error) {
-    logger.error("Socket authentication error:", error);
+    console.error("Socket authentication error:", error);
     return next(
       CustomError.authentication("Authentication failed", {
         errorMessage: error.message,
@@ -168,7 +167,7 @@ const setupSocketIO = (server, corsSocketOptions) => {
       const departmentId = socket.user.department._id.toString();
       const organizationId = socket.user.organization._id.toString();
 
-      logger.info(
+      console.log(
         `Socket connected, SocketId: ${socket.id} | User: ${userId} | Org: ${organizationId}`
       );
 
@@ -234,7 +233,7 @@ const setupSocketIO = (server, corsSocketOptions) => {
               accessToken: newAccessToken,
             });
         } catch (error) {
-          logger.error("Token refresh error:", error);
+          console.error("Token refresh error:", error);
           if (callback)
             callback({
               success: false,
@@ -267,7 +266,7 @@ const setupSocketIO = (server, corsSocketOptions) => {
       });
 
       socket.on("disconnect", (reason) => {
-        logger.info(
+        console.log(
           `Socket disconnected (${reason}): ${socket.id} | User: ${userId}`
         );
 
@@ -280,7 +279,7 @@ const setupSocketIO = (server, corsSocketOptions) => {
       });
 
       socket.on("error", (err) => {
-        logger.error(`Socket error: ${socket.id} | ${err.message}`);
+        console.error(`Socket error: ${socket.id} | ${err.message}`);
       });
 
       // Send connection confirmation
@@ -295,7 +294,7 @@ const setupSocketIO = (server, corsSocketOptions) => {
 
     // Graceful cleanup on server shutdown
     const gracefulShutdown = () => {
-      logger.info("Starting Socket.IO graceful shutdown...");
+      console.log("Starting Socket.IO graceful shutdown...");
       io.emit("server_shutdown", {
         message: "Server is shutting down",
         timestamp: new Date(),
@@ -311,12 +310,12 @@ const setupSocketIO = (server, corsSocketOptions) => {
     process.on("SIGINT", gracefulShutdown);
 
     io.engine.on("connection_error", (err) => {
-      logger.error(`Socket.IO connection error: ${err.message}`);
+      console.error(`Socket.IO connection error: ${err.message}`);
     });
 
     return io;
   } catch (err) {
-    logger.error(`Socket.IO setup failed: ${err.message}`);
+    console.error(`Socket.IO setup failed: ${err.message}`);
     throw err;
   }
 };

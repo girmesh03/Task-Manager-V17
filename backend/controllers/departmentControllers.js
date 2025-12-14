@@ -4,7 +4,7 @@ import asyncHandler from "express-async-handler";
 import CustomError from "../errorHandler/CustomError.js";
 import { Department, User, BaseTask, TaskActivity } from "../models/index.js";
 import { createNotification } from "../utils/helpers.js";
-import { HEAD_OF_DEPARTMENT_ROLES, TASK_STATUS } from "../utils/constants.js";
+import { HEAD_OF_DEPARTMENT_ROLES } from "../utils/constants.js";
 import { emitToDepartment, emitToRecipients } from "../utils/socketEmitter.js";
 
 /**
@@ -203,22 +203,22 @@ export const getDepartment = asyncHandler(async (req, res, next) => {
       const [todo, inProgress, completed, pending] = await Promise.all([
         BaseTask.countDocuments({
           department: departmentId,
-          status: TASK_STATUS[0], // "To Do"
+          status: "To Do",
           isDeleted: false,
         }),
         BaseTask.countDocuments({
           department: departmentId,
-          status: TASK_STATUS[1], // "In Progress"
+          status: "In Progress",
           isDeleted: false,
         }),
         BaseTask.countDocuments({
           department: departmentId,
-          status: TASK_STATUS[2], // "Completed"
+          status: "Completed",
           isDeleted: false,
         }),
         BaseTask.countDocuments({
           department: departmentId,
-          status: TASK_STATUS[3], // "Pending"
+          status: "Pending",
           isDeleted: false,
         }),
       ]);

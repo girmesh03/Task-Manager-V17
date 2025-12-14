@@ -493,7 +493,7 @@
 
    **2. getAllUsers**
 
-   - Extract: orgId, caller from req.user
+   - Extract: organization._id, department._id, isHod, isPlatformUser, isDeleted from req.user
    - Extract: page, limit, search, deleted, role, department, sortBy, sortOrder from req.validated.query
    - Session: NO
    - Business Logic:

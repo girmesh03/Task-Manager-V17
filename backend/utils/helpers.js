@@ -4,7 +4,6 @@ import { MAX_RECIPIENTS_PER_NOTIFICATION } from "./constants.js";
 import CustomError from "../errorHandler/CustomError.js";
 import emailService from "../services/emailService.js";
 import emailTemplates from "../templates/emailTemplates.js";
-import logger from "./logger.js";
 
 // Capitalize first letter
 export const capitalize = (str) => {
@@ -284,7 +283,7 @@ export const createNotification = async (
             emailData
           );
         } catch (emailError) {
-          logger.error("Error sending notification emails:", emailError);
+          console.error("Error sending notification emails:", emailError);
           // Update notification with email error
           await Notification.findByIdAndUpdate(notification._id, {
             "emailDelivery.error": emailError.message,
@@ -331,7 +330,7 @@ export const sendNotificationEmails = async (
           emailsSent++;
         })
         .catch((error) => {
-          logger.error(`Failed to send email to ${recipient.email}:`, error);
+          console.error(`Failed to send email to ${recipient.email}:`, error);
         });
 
       emailPromises.push(emailPromise);
@@ -348,7 +347,7 @@ export const sendNotificationEmails = async (
       "emailDelivery.lastAttemptAt": new Date(),
     });
   } catch (error) {
-    logger.error("Error in sendNotificationEmails:", error);
+    console.error("Error in sendNotificationEmails:", error);
     throw error;
   }
 };
@@ -644,11 +643,11 @@ export const sendTaskReminderEmails = async (
     });
 
     await Promise.allSettled(emailPromises);
-    logger.info(
+    console.log(
       `Task reminder emails queued for ${recipients.length} recipients`
     );
   } catch (error) {
-    logger.error("Error sending task reminder emails:", error);
+    console.error("Error sending task reminder emails:", error);
     throw error;
   }
 };

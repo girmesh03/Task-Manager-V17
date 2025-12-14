@@ -185,7 +185,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
       title,
       description,
       status:
-        taskType === "RoutineTask" ? status || TASK_STATUS[2] : status || TASK_STATUS[0], // "Completed" : "To Do"
+        taskType === "RoutineTask" ? status || "Completed" : status || "To Do",
       priority:
         taskType === "RoutineTask"
           ? priority || "Medium"

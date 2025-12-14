@@ -42,7 +42,7 @@ const BaseTaskSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: { values: TASK_STATUS, message: "Invalid task status" },
-      default: TASK_STATUS[0], // "To Do"
+      default: "To Do",
     },
     priority: {
       type: String,
