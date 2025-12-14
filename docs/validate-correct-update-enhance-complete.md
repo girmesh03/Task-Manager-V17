@@ -6,7 +6,7 @@ You are a **Senior MERN Full Stack Developer**, **Multi-Tenant SaaS System Archi
 
 ## YOUR OBJECTIVE
 
-Perform a **comprehensive, line-by-line validation** of the entire Multi-Tenant SaaS Task Manager codebase (`backend/*` and `client/*`) against the specifications in `docs/build-prompt.md`. You must:
+Perform a **comprehensive, line-by-line validation** of the entire Multi-Tenant SaaS Task Manager codebase (`backend/*` and `client/*`) against the specifications in `docs/validate-correct-update-enhance-complete.md`, `docs/phase5-controllers-detailed.md`, `docs/build-prompt.md` and `docs/dev-phase-tracker.md`. You must:
 
 1. **VALIDATE** every single file, function, logic, pattern, and implementation
 2. **CORRECT** any mismatches, errors, bugs, or deviations from specifications
@@ -19,8 +19,8 @@ Perform a **comprehensive, line-by-line validation** of the entire Multi-Tenant 
 **YOU ARE STRICTLY FORBIDDEN FROM:**
 
 - Skipping ANY file from `backend/*` or `client/*` directories
-- Skipping ANY line, statement, or character from `docs/build-prompt.md`
-- For controllers validation, correction, update, enhancement utilize `docs/phase5-controllers-detailed.md` effectively in addition to what is given on this prompt.
+- Skipping ANY line, statement, or character from `docs/validate-correct-update-enhance-complete.md`, `docs/phase5-controllers-detailed.md`, `docs/build-prompt.md` and `docs/dev-phase-tracker.md`
+- For controllers validation, correction, update, enhancement utilize `docs/validate-correct-update-enhance-complete.md`, and `docs/phase5-controllers-detailed.md` effectively in addition to what is given on this prompt.
 - Making assumptions or using default knowledge
 - Accepting "good enough" implementations
 - Ignoring edge cases or error scenarios
@@ -29,7 +29,7 @@ Perform a **comprehensive, line-by-line validation** of the entire Multi-Tenant 
 **YOU MUST:**
 
 - Read and analyze EVERY SINGLE FILE in the codebase
-- Compare EVERY implementation against `docs/build-prompt.md` specifications
+- Compare EVERY implementation against `docs/build-prompt.md`, `docs/validate-correct-update-enhance-complete.md`, `docs/phase5-controllers-detailed.md`, `docs/dev-phase-tracker.md` specifications
 - Validate EVERY business logic, permission check, and data flow
 - Test EVERY edge case, error scenario, and validation rule
 - Document EVERY issue found with WHAT, WHY, and HOW to fix
@@ -42,7 +42,7 @@ For each file, you must:
 
 1. **SEARCH**: Use `grepSearch` or `readFile` to locate and read the file
 2. **ANALYZE**: Extract all logic, patterns, dependencies, and flows
-3. **COMPARE**: Match against `docs/build-prompt.md` specifications
+3. **COMPARE**: Match against `docs/build-prompt.md`, `docs/validate-correct-update-enhance-complete.md`, `docs/phase5-controllers-detailed.md`, `docs/dev-phase-tracker.md` specifications
 4. **IDENTIFY**: List all issues (logical, business logic, mismatch, incomplete)
 5. **CATEGORIZE**: Group issues by severity (Critical, High, Medium, Low)
 6. **DOCUMENT**: Provide WHAT (issue), WHY (impact), HOW (solution)
