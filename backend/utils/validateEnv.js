@@ -77,11 +77,13 @@ const ENV_DEFINITIONS = {
   SMTP_HOST: {
     required: true,
     type: "string",
+    default: "smtp.gmail.com",
     description: "SMTP server hostname",
   },
   SMTP_PORT: {
     required: true,
     type: "port",
+    default: "587",
     description: "SMTP server port",
   },
   SMTP_USER: {
@@ -93,6 +95,22 @@ const ENV_DEFINITIONS = {
     required: true,
     type: "string",
     description: "SMTP authentication password",
+  },
+
+  EMAIL_USER: {
+    required: false,
+    type: "email",
+    description: "Alias for SMTP_USER",
+  },
+  EMAIL_PASSWORD: {
+    required: false,
+    type: "string",
+    description: "Alias for SMTP_PASS",
+  },
+  EMAIL_FROM: {
+    required: false,
+    type: "string",
+    description: "Optional From header override",
   },
 
   // === OPTIONAL: Rate Limiting ===
@@ -392,6 +410,13 @@ const validateVariable = (key, definition) => {
 export const validateEnvironment = (options = {}) => {
   const { exitOnError = true, logResults = true } = options;
 
+  if (!process.env.SMTP_USER && process.env.EMAIL_USER) {
+    process.env.SMTP_USER = process.env.EMAIL_USER;
+  }
+  if (!process.env.SMTP_PASS && process.env.EMAIL_PASSWORD) {
+    process.env.SMTP_PASS = process.env.EMAIL_PASSWORD;
+  }
+
   const results = {
     valid: true,
     errors: [],
@@ -460,7 +485,6 @@ export const getEnv = (key, defaultValue = undefined) => {
 
   if (finalValue === undefined) return undefined;
 
-  // Type coercion
   if (definition) {
     switch (definition.type) {
       case "number":
@@ -479,8 +503,6 @@ export const getEnv = (key, defaultValue = undefined) => {
   }
 
   return finalValue;
-
-  return value;
 };
 
 /**
