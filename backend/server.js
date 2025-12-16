@@ -95,7 +95,7 @@ const startServer = async () => {
       logger.warn("⚠️  Email service initialization failed:", {
         error: emailError.message,
       });
-      logger.warn("� Emrail notifications will be disabled");
+      logger.warn("Email notifications will be disabled");
     }
 
     // Step 6: Seed database (development only)

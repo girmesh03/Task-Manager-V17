@@ -485,7 +485,6 @@ export const getEnv = (key, defaultValue = undefined) => {
 
   if (finalValue === undefined) return undefined;
 
-  // Type coercion
   if (definition) {
     switch (definition.type) {
       case "number":
@@ -504,8 +503,6 @@ export const getEnv = (key, defaultValue = undefined) => {
   }
 
   return finalValue;
-
-  return value;
 };
 
 /**
