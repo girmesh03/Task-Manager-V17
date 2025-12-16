@@ -127,7 +127,8 @@ class EmailService {
     }
 
     const mailOptions = {
-      from: `${process.env.APP_NAME} <${process.env.SMTP_USER}>`,
+      from:
+        process.env.EMAIL_FROM || `${process.env.APP_NAME} <${process.env.SMTP_USER}>`,
       to: emailData.to,
       subject: emailData.subject,
       text: emailData.text,
