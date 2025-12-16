@@ -1,10 +1,18 @@
 // backend/utils/generateTokens.js
+/**
+ * JWT Token Generation Utilities
+ *
+ * Requirements: 10.11
+ * - Access token: 15 minutes expiry
+ * - Refresh token: 7 days expiry
+ * - Payload: userId, email, role, organization, department
+ * - Separate secrets for access and refresh tokens
+ */
 import jwt from "jsonwebtoken";
 
-// Defaults based on environment
-const DEFAULT_ACCESS_EXPIRES_IN =
-  process.env.NODE_ENV === "production" ? "15m" : "1h";
-const DEFAULT_REFRESH_EXPIRES_IN = "7d";
+// Token expiry times per specification
+const DEFAULT_ACCESS_EXPIRES_IN = "15m"; // 15 minutes per spec
+const DEFAULT_REFRESH_EXPIRES_IN = "7d"; // 7 days per spec
 
 const accessExpiresInEnv =
   process.env.JWT_ACCESS_EXPIRES_IN || DEFAULT_ACCESS_EXPIRES_IN;
@@ -31,9 +39,6 @@ const expiresInToMs = (expiresIn) => {
   }
 
   // Fallback to 15 minutes if format is unrecognized
-  console.warn(
-    `Unsupported expiresIn format: ${expiresIn}. Using fallback value.`
-  );
   return 15 * 60 * 1000;
 };
 
@@ -41,17 +46,55 @@ const expiresInToMs = (expiresIn) => {
 const ACCESS_TOKEN_MAX_AGE = expiresInToMs(accessExpiresInEnv);
 const REFRESH_TOKEN_MAX_AGE = expiresInToMs(refreshExpiresInEnv);
 
-export const generateAccessToken = (userId) => {
+/**
+ * Generate access token with full user payload
+ * Payload includes: userId, email, role, organization, department
+ *
+ * @param {Object} user - User object with required fields
+ * @param {string} user._id - User ID
+ * @param {string} user.email - User email
+ * @param {string} user.role - User role
+ * @param {Object|string} user.organization - Organization reference
+ * @param {Object|string} user.department - Department reference
+ * @returns {string} Signed JWT access token
+ */
+export const generateAccessToken = (user) => {
   const secret = process.env.JWT_ACCESS_SECRET;
   if (!secret) throw new Error("JWT_ACCESS_SECRET not set");
-  return jwt.sign({ userId }, secret, {
+
+  // Support both full user object and simple userId for backward compatibility
+  const payload =
+    typeof user === "object"
+      ? {
+          userId: user._id?.toString() || user.userId,
+          email: user.email,
+          role: user.role,
+          organization:
+            user.organization?._id?.toString() || user.organization?.toString(),
+          department:
+            user.department?._id?.toString() || user.department?.toString(),
+        }
+      : { userId: user };
+
+  return jwt.sign(payload, secret, {
     expiresIn: accessExpiresInEnv,
   });
 };
 
-export const generateRefreshToken = (userId) => {
+/**
+ * Generate refresh token with userId only
+ * Refresh tokens have minimal payload for security
+ *
+ * @param {Object|string} user - User object or userId
+ * @returns {string} Signed JWT refresh token
+ */
+export const generateRefreshToken = (user) => {
   const secret = process.env.JWT_REFRESH_SECRET;
   if (!secret) throw new Error("JWT_REFRESH_SECRET not set");
+
+  const userId =
+    typeof user === "object" ? user._id?.toString() || user.userId : user;
+
   return jwt.sign({ userId }, secret, {
     expiresIn: refreshExpiresInEnv,
   });

@@ -206,11 +206,7 @@ const ENV_DEFINITIONS = {
   },
 
   // === OPTIONAL: Platform Configuration ===
-  PLATFORM_ORGANIZATION_ID: {
-    required: false,
-    type: "string",
-    description: "Platform organization MongoDB ObjectId",
-  },
+
   PLATFORM_ORGANIZATION_NAME: {
     required: false,
     type: "string",
@@ -457,22 +453,32 @@ export const getEnv = (key, defaultValue = undefined) => {
   const definition = ENV_DEFINITIONS[key];
   const value = process.env[key];
 
+  let finalValue = value;
   if (value === undefined || value === "") {
-    return defaultValue !== undefined ? defaultValue : definition?.default;
+    finalValue = defaultValue !== undefined ? defaultValue : definition?.default;
   }
+
+  if (finalValue === undefined) return undefined;
 
   // Type coercion
   if (definition) {
     switch (definition.type) {
       case "number":
       case "port":
-        return parseInt(value, 10);
+        if (typeof finalValue === "number") return finalValue;
+        return parseInt(finalValue, 10);
       case "boolean":
-        return value.toLowerCase() === "true" || value === "1";
+        if (typeof finalValue === "boolean") return finalValue;
+        return (
+          String(finalValue).toLowerCase() === "true" ||
+          String(finalValue) === "1"
+        );
       default:
-        return value;
+        return finalValue;
     }
   }
+
+  return finalValue;
 
   return value;
 };

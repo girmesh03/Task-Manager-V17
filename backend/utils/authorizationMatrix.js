@@ -11,8 +11,8 @@ export const hasPermission = (user, resource, operation, context = null) => {
   if (!user) return false;
 
   const userRole = user.role;
-  const isPlatformUser =
-    user.organization._id.toString() === process.env.PLATFORM_ORGANIZATION_ID;
+  // Check if user is a platform user (using isPlatformUser flag from User model)
+  const isPlatformUser = user.isPlatformUser === true;
 
   const rolePermissions = authorizationMatrix[resource]?.[userRole];
   if (!rolePermissions) return false;
@@ -50,8 +50,8 @@ export const getAllowedOperations = (user, resource) => {
   if (!user) return [];
 
   const userRole = user.role;
-  const isPlatformUser =
-    user.organization._id.toString() === process.env.PLATFORM_ORGANIZATION_ID;
+  // Check if user is a platform user (using isPlatformUser flag from User model)
+  const isPlatformUser = user.isPlatformUser === true;
 
   const rolePermissions = authorizationMatrix[resource]?.[userRole];
   if (!rolePermissions) return [];

@@ -1,9 +1,11 @@
 // backend/config/db.js
 import mongoose from "mongoose";
+import logger from "../utils/logger.js";
 
-// Using Infinity for continuous retries
+// Retry configuration per specification
 const INITIAL_RETRY_DELAY = 1000;
 const MAX_RETRY_DELAY = 30000; // Cap at 30 seconds
+const MAX_RETRY_ATTEMPTS = 5; // Max 5 attempts per specification
 let retryCount = 0;
 let isConnecting = false;
 
@@ -25,10 +27,21 @@ const connectWithRetry = async () => {
       minPoolSize: 2,
     });
 
-    console.log("💾 Connected to MongoDB successfully.");
+    logger.info("💾 Connected to MongoDB successfully.");
     retryCount = 0;
   } catch (error) {
-    console.error(`MongoDB connection error: ${error.message}`);
+    logger.error(`MongoDB connection error: ${error.message}`);
+
+    // Check if max retry attempts reached
+    if (retryCount >= MAX_RETRY_ATTEMPTS) {
+      logger.error(
+        `Max retry attempts (${MAX_RETRY_ATTEMPTS}) reached. Giving up.`
+      );
+      isConnecting = false;
+      throw new Error(
+        `Failed to connect to MongoDB after ${MAX_RETRY_ATTEMPTS} attempts`
+      );
+    }
 
     // Calculate delay with exponential backoff, but cap it
     const delay = Math.min(
@@ -36,8 +49,8 @@ const connectWithRetry = async () => {
       MAX_RETRY_DELAY
     );
     retryCount++;
-    console.warn(
-      `Retrying connection in ${delay}ms... (Attempt ${retryCount})`
+    logger.warn(
+      `Retrying connection in ${delay}ms... (Attempt ${retryCount}/${MAX_RETRY_ATTEMPTS})`
     );
     setTimeout(connectWithRetry, delay);
     return;
@@ -56,11 +69,14 @@ const monitorConnection = () => {
       2: "connecting",
       3: "disconnecting",
     };
-    
+
     if (state !== 1 && !isConnecting) {
-      console.log(`MongoDB connection state: ${stateMap[state] || "unknown"} (${state})`);
+      logger.info(
+        `MongoDB connection state: ${stateMap[state] || "unknown"} (${state})`
+      );
       if (state === 0) {
-        console.log("Attempting to reconnect to MongoDB...");
+        logger.info("Attempting to reconnect to MongoDB...");
+        retryCount = 0; // Reset retry count for reconnection attempts
         connectWithRetry();
       }
     }
@@ -74,15 +90,15 @@ const connectDB = async () => {
 };
 
 mongoose.connection.on("connecting", () => {
-  console.log("Attempting to connect to MongoDB...");
+  logger.info("Attempting to connect to MongoDB...");
 });
 
 mongoose.connection.on("connected", () => {
-  console.log("MongoDB connection re-established.");
+  logger.info("MongoDB connection re-established.");
 });
 
 mongoose.connection.on("disconnected", () => {
-  console.log("🔌 MongoDB connection lost. Attempting to reconnect...");
+  logger.warn("🔌 MongoDB connection lost. Attempting to reconnect...");
   if (!isConnecting && mongoose.connection.readyState !== 1) {
     // Reset retry count on disconnection to avoid excessive delays
     retryCount = 0;
@@ -92,9 +108,9 @@ mongoose.connection.on("disconnected", () => {
 
 mongoose.connection.on("error", (err) => {
   if (err.name === "MongoServerSelectionError") {
-    console.warn("MongoDB server selection error, will retry...");
+    logger.warn("MongoDB server selection error, will retry...");
   } else {
-    console.error("❌ MongoDB connection error:", err.message);
+    logger.error("❌ MongoDB connection error:", err.message);
   }
 });
 

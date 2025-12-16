@@ -1,7 +1,14 @@
+// backend/tests/globalTeardown.js
+/**
+ * Global Test Teardown
+ *
+ * Cleans up after all tests complete.
+ * Uses real MongoDB instance as per specification.
+ */
+
 export default async function globalTeardown() {
-  // Stop MongoDB Memory Server
-  if (global.__MONGOSERVER__) {
-    await global.__MONGOSERVER__.stop();
-    console.log("MongoDB Memory Server stopped");
-  }
+  // Clean up global variables
+  delete global.__MONGO_URI__;
+
+  console.log("Test teardown complete");
 }
